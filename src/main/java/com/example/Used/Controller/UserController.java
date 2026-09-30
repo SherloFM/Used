@@ -1,6 +1,7 @@
 package com.example.Used.Controller;
 
 import com.example.Used.Model.Requests.LoginRequests;
+import com.example.Used.Model.Requests.VerificationRequests;
 import com.example.Used.Model.User;
 import com.example.Used.Service.UserService;
 import lombok.AllArgsConstructor;
@@ -22,6 +23,13 @@ public class UserController {
             @RequestBody User userObject
     ){
         return userService.createUser(userObject);
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyEmail(
+            @RequestBody VerificationRequests request
+    ){
+        return userService.verifyEmail(request);
     }
 
     @PostMapping("/login")

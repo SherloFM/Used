@@ -1,6 +1,7 @@
 package com.example.Used.Security;
 
 import com.example.Used.Model.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ public class MyUserDetails implements UserDetails {
 
     private User user;
 
+    @Autowired
     public MyUserDetails(User user) {
         this.user = user;
     }
@@ -49,7 +51,7 @@ public class MyUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.isEmailVerified();
     }
 
     public User getUser() {

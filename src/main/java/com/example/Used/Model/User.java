@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 
-@AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
@@ -59,12 +58,27 @@ public class User {
     private LocalDateTime updatedAt;
 
     @Column
-    private boolean isBanned;
+    private boolean isBanned = false;
+
+
+    @Column
+    private boolean emailVerified = false;
+
+    @Column
+    @JsonIgnore
+    private String verificationCode;
+
+    @Column
+    @JsonIgnore
+    private LocalDateTime verificationCodeExpiration;
 
     @JsonIgnore
     public String getPassword(){
         return password;
     }
 
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_profile_id", referencedColumnName = "id")
+    private UserProfile userProfile;
 
 }
