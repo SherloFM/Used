@@ -7,7 +7,9 @@ import com.example.Used.Model.User;
 import com.example.Used.Model.UserProfile;
 import com.example.Used.Repository.UserRepository;
 import com.example.Used.Security.JWTUtilities;
+import com.example.Used.Security.LoginRateLimiter;
 import com.example.Used.Security.MyUserDetails;
+import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,7 @@ public class UserService {
     private MyUserDetails myUserDetails;
     private final JWTUtilities jwtUtilities;
     private final EmailServices emailServices;
+    private final LoginRateLimiter loginRateLimiter;
 
 
     @Autowired
@@ -38,7 +41,8 @@ public class UserService {
             @Lazy AuthenticationManager authenticationManager,
             MyUserDetails myUserDetails,
             JWTUtilities jwtUtilities,
-            EmailServices emailServices
+            EmailServices emailServices,
+            LoginRateLimiter loginRateLimiter
     ){
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
@@ -46,6 +50,7 @@ public class UserService {
         this.myUserDetails = myUserDetails;
         this.jwtUtilities = jwtUtilities;
         this.emailServices = emailServices;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     public User createUser(User userObject){
@@ -79,18 +84,32 @@ public class UserService {
     }
 
     public ResponseEntity<?> loginUser(LoginRequests loginRequest){
+        String email = loginRequest.getEmail().toLowerCase();
+
+        if (!loginRateLimiter.isAllowed(email)) {
+            return ResponseEntity
+                    .status(429)
+                    .body(new LoginResponses("Too many login attempts"));
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getEmail(),
+                            email,
                             loginRequest.getPassword()
-                    ));
+                    )
+            );
+
+            loginRateLimiter.resetAttempts(email);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             myUserDetails = (MyUserDetails) authentication.getPrincipal();
             final String JWT = jwtUtilities.generateJWTtoken(myUserDetails);
             return ResponseEntity.ok(new LoginResponses(JWT));
-        }catch (Exception e){
-            return ResponseEntity.ok(new LoginResponses("login failed"));
+        } catch (Exception e) {
+            loginRateLimiter.recordFailedAttempt(email);
+            return ResponseEntity
+                    .status(401)
+                    .body(new LoginResponses("Invalid email or password"));
         }
     }
 

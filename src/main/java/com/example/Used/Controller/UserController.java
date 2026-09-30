@@ -4,6 +4,7 @@ import com.example.Used.Model.Requests.LoginRequests;
 import com.example.Used.Model.Requests.VerificationRequests;
 import com.example.Used.Model.User;
 import com.example.Used.Service.UserService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,8 +34,9 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginRequests loginRequest){
-        System.out.println("calling loginUser ==>");
+    public ResponseEntity<?> loginUser(
+            @Valid @RequestBody LoginRequests loginRequest
+    ){
         return userService.loginUser(loginRequest);
     }
 
