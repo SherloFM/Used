@@ -72,6 +72,14 @@ public class User {
     @JsonIgnore
     private LocalDateTime verificationCodeExpiration;
 
+    @Column
+    @JsonIgnore
+    private String passwordResetCode;
+
+    @Column
+    @JsonIgnore
+    private LocalDateTime passwordResetCodeExpiration;
+
     @JsonIgnore
     public String getPassword(){
         return password;

@@ -2,6 +2,9 @@ package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Model.Requests.LoginRequests;
+import com.example.Used.Model.Requests.passwordManager.ChangePasswordRequests;
+import com.example.Used.Model.Requests.passwordManager.ForgetPasswordRequests;
+import com.example.Used.Model.Requests.passwordManager.ResetPasswordRequests;
 import com.example.Used.Model.Responses.LoginResponses;
 import com.example.Used.Model.User;
 import com.example.Used.Model.UserProfile;
@@ -32,7 +35,7 @@ public class UserService {
     private final JWTUtilities jwtUtilities;
     private final EmailServices emailServices;
     private final LoginRateLimiter loginRateLimiter;
-
+    private final CurrentUserService currentUserService;
 
     @Autowired
     public UserService(
@@ -42,7 +45,9 @@ public class UserService {
             MyUserDetails myUserDetails,
             JWTUtilities jwtUtilities,
             EmailServices emailServices,
-            LoginRateLimiter loginRateLimiter
+            LoginRateLimiter loginRateLimiter,
+                    CurrentUserService currentUserService
+
     ){
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
@@ -51,6 +56,14 @@ public class UserService {
         this.jwtUtilities = jwtUtilities;
         this.emailServices = emailServices;
         this.loginRateLimiter = loginRateLimiter;
+        this.currentUserService = currentUserService;
+    }
+
+
+    private static User getCurrentLoggedInUser(){
+        MyUserDetails userDetails = (MyUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        return userDetails.getUser();
     }
 
     public User createUser(User userObject){
@@ -62,7 +75,7 @@ public class UserService {
             userObject.setUserProfile(userProfile);
 
             userObject.setEmailVerified(false);
-            String emailVerificationCode = String.format("%06d",new Random().nextInt());
+            String emailVerificationCode = String.format("%06d",new Random().nextInt(1000000));
             userObject.setVerificationCode(emailVerificationCode);
             userObject.setVerificationCodeExpiration(LocalDateTime.now().plusMinutes(10));
 
@@ -142,6 +155,110 @@ public class UserService {
         userRepository.save(user);
 
         return ResponseEntity.ok("Email verified successfully");
+    }
+
+    public ResponseEntity<?> forgotPassword(ForgetPasswordRequests request) {
+
+        User user = userRepository.findByEmail(request.getEmail());
+
+        if (user == null) {
+            return ResponseEntity.ok(
+                    "If the email exists, a password reset code has been sent"
+            );
+        }
+
+        String resetCode = String.format("%06d", new Random().nextInt(1000000));
+
+        user.setPasswordResetCode(resetCode);
+        user.setPasswordResetCodeExpiration(LocalDateTime.now().plusMinutes(10));
+
+        userRepository.save(user);
+
+        emailServices.sendPasswordResetEmail(
+                user.getEmail(),
+                resetCode
+        );
+
+        return ResponseEntity.ok(
+                "If the email exists, a password reset code has been sent"
+        );
+    }
+
+    public ResponseEntity<?> resetPassword(
+            ResetPasswordRequests request
+    ) {
+
+        User user = userRepository.findByEmail(request.getEmail());
+
+        //user null check
+        if (user == null) {
+            return ResponseEntity.badRequest().body("Invalid reset request");
+        }
+
+        //reset code null check
+        if (user.getPasswordResetCode() == null || user.getPasswordResetCodeExpiration() == null) {
+            return ResponseEntity.badRequest().body("Invalid or expired reset code");
+        }
+
+        //check datet time if before expiration
+        if (LocalDateTime.now().isAfter(user.getPasswordResetCodeExpiration())) {
+            return ResponseEntity.badRequest().body("Invalid or expired reset code");
+        }
+
+        //reset code validity check
+        if (!user.getPasswordResetCode().equals(request.getCode())) {
+            return ResponseEntity.badRequest().body("Invalid or expired reset code");
+        }
+
+        //change password
+        user.setPassword(
+                passwordEncoder.encode(request.getNewPassword())
+        );
+
+        user.setPasswordResetCode(null);
+        user.setPasswordResetCodeExpiration(null);
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(
+                "Password reset successfully"
+        );
+    }
+
+    public ResponseEntity<?> changePassword(ChangePasswordRequests request) {
+
+        //store current user in user object
+        User user = currentUserService.getCurrentUser();
+
+        //check if password is correct
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                user.getPassword()
+        )) {
+            return ResponseEntity.badRequest()
+                    .body("Current password is incorrect");
+        }
+
+
+        //check if new matches old
+        if (passwordEncoder.matches(
+                request.getNewPassword(),
+                user.getPassword()
+        )) {
+            return ResponseEntity.badRequest()
+                    .body("New password must be different from current password");
+        }
+
+        //set new pasword and save
+        user.setPassword(
+                passwordEncoder.encode(request.getNewPassword())
+        );
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(
+                "Password changed successfully"
+        );
     }
 
 }

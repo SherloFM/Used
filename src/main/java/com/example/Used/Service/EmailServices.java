@@ -32,4 +32,19 @@ public class EmailServices {
 
         javaMailSender.send(message);
     }
+
+    public void sendPasswordResetEmail(String email, String code) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(email);
+        message.setSubject("Password Reset Code");
+
+        message.setText(
+                "Your password reset code is: " + code +
+                        "\n\nThis code will expire in 10 minutes."
+        );
+
+        javaMailSender.send(message);
+    }
 }
