@@ -73,7 +73,8 @@ public class UserService {
             UserProfile userProfile = new UserProfile();
             userProfile.setUser(userObject);
             userObject.setUserProfile(userProfile);
-
+            userObject.setRole(User.Role.USER);
+            userObject.setPassword(passwordEncoder.encode(userObject.getPassword()));
             userObject.setEmailVerified(false);
             String emailVerificationCode = String.format("%06d",new Random().nextInt(1000000));
             userObject.setVerificationCode(emailVerificationCode);
@@ -103,6 +104,22 @@ public class UserService {
             return ResponseEntity
                     .status(429)
                     .body(new LoginResponses("Too many login attempts"));
+        }
+
+        User user = userRepository.findByEmail(email);
+
+        if (user == null){
+            loginRateLimiter.recordFailedAttempt(email);
+
+            return ResponseEntity
+                    .status(401)
+                    .body(new LoginResponses("Invalid email or password"));
+
+        }
+        if(user.isBanned()){
+            return ResponseEntity
+                    .status(403)
+                    .body(new LoginResponses("Account is banned"));
         }
 
         try {

@@ -2,12 +2,15 @@ package com.example.Used.Security;
 
 import com.example.Used.Model.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 
 @Component
 public class MyUserDetails implements UserDetails {
@@ -20,8 +23,9 @@ public class MyUserDetails implements UserDetails {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return new HashSet<>();
+        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name().toUpperCase()));
     }
 
     @Override

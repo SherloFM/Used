@@ -46,6 +46,7 @@ public class SecurityConfiguration {
                                 "/auth/user/login",
                                 "/auth/user/verify",
                                 "/auth/user/forget-password",
+                                "/auth/user/reset-password",
                         "/error"
                         ).permitAll()
                         .anyRequest().authenticated());

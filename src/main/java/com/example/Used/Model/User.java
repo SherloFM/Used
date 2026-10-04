@@ -42,11 +42,11 @@ public class User {
 
 
     public enum Role{
-        admin,
-        user
+        ADMIN,
+        USER
     }
     @Enumerated(EnumType.STRING)
-    @Column
+    @Column(nullable = false)
     private Role role;
 
     @Column
