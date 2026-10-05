@@ -198,4 +198,40 @@ public class TransactionServicesTest {
         verify(listingRepository, never())
                 .save(any());
     }
+
+    @Test
+    void purchaseListing_ownListing_isRejected() {
+
+        User seller = new User();
+        seller.setId(1L);
+        seller.setRole(User.Role.USER);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.ACTIVE);
+        listing.setUser(seller);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(seller);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> transactionServices.purchaseListing(10L)
+                );
+
+        assertEquals(
+                "You cannot buy your own listing",
+                exception.getMessage()
+        );
+
+        verify(transactionsRepository, never())
+                .save(any());
+
+        verify(listingRepository, never())
+                .save(any());
+    }
 }
