@@ -41,7 +41,7 @@ public class ListingService {
         listing.setCondition(listingRequest.getCondition());
         listing.setLocation(listingRequest.getLocation());
 
-        listing.setStatus(Listings.Status.ON_SALE);
+        listing.setStatus(Listings.Status.ACTIVE);
 
         // Get owner from logged-in user
         listing.setUser(user);
@@ -69,7 +69,7 @@ public class ListingService {
     // GET LISTINGS THAT ARE FOR SALE
     public List<Listings> getListingsForSale() {
 
-        return listingsRepository.findByStatus(Listings.Status.ON_SALE);
+        return listingsRepository.findByStatus(Listings.Status.ACTIVE);
     }
 
     // UPDATE LISTING
@@ -152,7 +152,7 @@ public class ListingService {
         }
 
         // Make sure listing is actually available
-        if (listing.getStatus() != Listings.Status.ON_SALE) {
+        if (listing.getStatus() != Listings.Status.ACTIVE) {
             throw new InformationExistException(
                     "Listing is not available for purchase"
             );

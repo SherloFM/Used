@@ -49,9 +49,9 @@ public class Listings {
 
 
     public enum Status{
-        UNLISTED,
+        ACTIVE,
         SOLD,
-        ON_SALE
+        DELISTED
     }
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
