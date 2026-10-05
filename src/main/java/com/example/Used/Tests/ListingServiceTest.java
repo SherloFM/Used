@@ -1,6 +1,7 @@
 package com.example.Used.Tests;
 
 import com.example.Used.Exceptions.InformationExistException;
+import com.example.Used.Exceptions.ResourceNotFoundException;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.ListingRepository;
@@ -303,5 +304,27 @@ public class ListingServiceTest {
 
         verify(listingRepository, never())
                 .findById(anyLong());
+    }
+
+    @Test
+    void adminDeleteListing_listingDoesNotExist_throwsException() {
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setRole(User.Role.ADMIN);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(admin);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> listingService.adminDeleteListing(10L)
+        );
+
+        verify(listingRepository, never())
+                .save(any());
     }
 }
