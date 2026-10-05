@@ -66,4 +66,23 @@ public class EmailServices {
 
         javaMailSender.send(message);
     }
+
+    public void sendListingSoldEmail(
+            String sellerEmail,
+            String listingTitle
+    ) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(sellerEmail);
+        message.setSubject("Used - Your Listing Has Been Sold");
+
+        message.setText(
+                "Your listing has been sold!\n\n" +
+                        "Listing: " + listingTitle + "\n\n" +
+                        "Thank you for using Used."
+        );
+
+        javaMailSender.send(message);
+    }
 }
