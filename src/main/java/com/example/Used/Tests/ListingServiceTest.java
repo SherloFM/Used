@@ -151,4 +151,32 @@ public class ListingServiceTest {
         verify(listingRepository, never())
                 .save(any());
     }
+
+    @Test
+    void deleteListing_otherUsersListing_isRejected() {
+
+        User user = new User();
+        user.setId(1L);
+        user.setRole(User.Role.USER);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(user);
+
+        when(listingRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.empty());
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.deleteListing(10L)
+                );
+
+        assertEquals(
+                "Listing not found or you are not the owner",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .save(any());
+    }
 }
