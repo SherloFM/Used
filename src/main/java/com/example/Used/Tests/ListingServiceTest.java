@@ -279,4 +279,29 @@ public class ListingServiceTest {
         verify(emailServices, never())
                 .sendListingDeletedEmail(anyString(), anyString());
     }
+
+    @Test
+    void adminDeleteListing_normalUser_isRejected() {
+
+        User user = new User();
+        user.setId(1L);
+        user.setRole(User.Role.USER);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(user);
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.adminDeleteListing(10L)
+                );
+
+        assertEquals(
+                "Only admins can remove listings",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .findById(anyLong());
+    }
 }
