@@ -159,4 +159,43 @@ public class TransactionServicesTest {
         verify(emailServices, never())
                 .sendListingSoldEmail(anyString(), anyString());
     }
+
+    @Test
+    void purchaseListing_delistedListing_isRejected() {
+
+        User buyer = new User();
+        buyer.setId(1L);
+        buyer.setRole(User.Role.USER);
+
+        User seller = new User();
+        seller.setId(2L);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.DELISTED);
+        listing.setUser(seller);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(buyer);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> transactionServices.purchaseListing(10L)
+                );
+
+        assertEquals(
+                "Listing is no longer available for purchase",
+                exception.getMessage()
+        );
+
+        verify(transactionsRepository, never())
+                .save(any());
+
+        verify(listingRepository, never())
+                .save(any());
+    }
 }
