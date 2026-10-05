@@ -123,6 +123,12 @@ public class ListingService {
 
         User user = currentUserService.getCurrentUser();
 
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new InformationExistException(
+                    "Use the admin listing removal endpoint"
+            );
+        }
+
         Listings listing = listingsRepository
                 .findByIdAndUserId(id, user.getId())
                 .orElseThrow(() ->
@@ -130,7 +136,15 @@ public class ListingService {
                                 "Listing not found or you are not the owner"
                         ));
 
-        listingsRepository.delete(listing);
+        if (listing.getStatus() != Listings.Status.ACTIVE) {
+            throw new InformationExistException(
+                    "Only active listings can be removed"
+            );
+        }
+
+        listing.setStatus(Listings.Status.DELISTED);
+
+        listingsRepository.save(listing);
     }
 
     // UPLOAD / CHANGE LISTING IMAGE
