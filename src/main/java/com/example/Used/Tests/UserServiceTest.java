@@ -238,5 +238,31 @@ class UserServiceTest {
                 .authenticate(any());
     }
 
+    @Test
+    void loginUser_emailIsConvertedToLowercase() {
+
+        LoginRequests request = new LoginRequests();
+        request.setEmail("TEST@EXAMPLE.COM");
+        request.setPassword("password123");
+
+        User user = new User();
+        user.setEmail("test@example.com");
+        user.setBanned(false);
+
+        when(loginRateLimiter.isAllowed("test@example.com"))
+                .thenReturn(true);
+
+        when(userRepository.findByEmail("test@example.com"))
+                .thenReturn(user);
+
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new RuntimeException());
+
+        userService.loginUser(request);
+
+        verify(userRepository)
+                .findByEmail("test@example.com");
+    }
+
 }
 
