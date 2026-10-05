@@ -118,4 +118,37 @@ public class ListingServiceTest {
         verify(listingRepository, never())
                 .save(any());
     }
+
+    @Test
+    void deleteListing_delistedListing_isRejected() {
+
+        User user = new User();
+        user.setId(1L);
+        user.setRole(User.Role.USER);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.DELISTED);
+        listing.setUser(user);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(user);
+
+        when(listingRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.deleteListing(10L)
+                );
+
+        assertEquals(
+                "Only active listings can be removed",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .save(any());
+    }
 }
