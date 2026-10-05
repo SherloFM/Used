@@ -18,20 +18,27 @@ public class ListingService {
 
     private final ListingRepository listingsRepository;
     private final CurrentUserService currentUserService;
+    private final EmailServices emailServices;
 
     @Autowired
     public ListingService(
             ListingRepository listingsRepository,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            EmailServices emailServices
     ) {
         this.listingsRepository = listingsRepository;
         this.currentUserService = currentUserService;
+        this.emailServices = emailServices;
     }
 
     // CREATE LISTING
     public Listings createListing(Listings listingRequest) {
 
         User user = currentUserService.getCurrentUser();
+
+        if (user.getRole() == User.Role.ADMIN){
+            throw new InformationExistException("Admins cannot create listings");
+        }
 
         Listings listing = new Listings();
 
