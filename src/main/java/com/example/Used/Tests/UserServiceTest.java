@@ -23,8 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -140,6 +139,39 @@ class UserServiceTest {
 
         verify(loginRateLimiter)
                 .recordFailedAttempt("test@example.com");
+    }
+
+    @Test
+    void loginUser_unknownEmail_returnsUnauthorized() {
+
+        LoginRequests request = new LoginRequests();
+        request.setEmail("unknown@example.com");
+        request.setPassword("password123");
+
+        when(loginRateLimiter.isAllowed("unknown@example.com"))
+                .thenReturn(true);
+
+        when(userRepository.findByEmail("unknown@example.com"))
+                .thenReturn(null);
+
+        ResponseEntity<?> response =
+                userService.loginUser(request);
+
+        assertEquals(401, response.getStatusCode().value());
+
+        LoginResponses body =
+                (LoginResponses) response.getBody();
+
+        assertEquals(
+                "Invalid email or password",
+                body.getMessage()
+        );
+
+        verify(loginRateLimiter)
+                .recordFailedAttempt("unknown@example.com");
+
+        verify(authenticationManager, never())
+                .authenticate(any());
     }
 }
 
