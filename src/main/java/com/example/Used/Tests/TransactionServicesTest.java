@@ -285,4 +285,38 @@ public class TransactionServicesTest {
         verify(transactionsRepository, never())
                 .save(any());
     }
+
+    @Test
+    void purchaseListing_amountComesFromListing() {
+
+        User buyer = new User();
+        buyer.setId(1L);
+        buyer.setRole(User.Role.USER);
+
+        User seller = new User();
+        seller.setId(2L);
+        seller.setEmail("seller@example.com");
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setTitle("Laptop");
+        listing.setPrice(500);
+        listing.setStatus(Listings.Status.ACTIVE);
+        listing.setUser(seller);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(buyer);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        when(transactionsRepository.save(any(Transactions.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0));
+
+        Transactions result =
+                transactionServices.purchaseListing(10L);
+
+        assertEquals(500, result.getAmount());
+    }
 }
