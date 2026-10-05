@@ -179,4 +179,29 @@ public class ListingServiceTest {
         verify(listingRepository, never())
                 .save(any());
     }
+
+    @Test
+    void deleteListing_admin_isRejected() {
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setRole(User.Role.ADMIN);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(admin);
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.deleteListing(10L)
+                );
+
+        assertEquals(
+                "Use the admin listing removal endpoint",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .findByIdAndUserId(anyLong(), anyLong());
+    }
 }
