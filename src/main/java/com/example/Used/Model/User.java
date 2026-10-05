@@ -90,6 +90,7 @@ public class User {
     @JoinColumn(name = "user_profile_id", referencedColumnName = "id")
     private UserProfile userProfile;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user")
     private List<Listings> listings;
 
