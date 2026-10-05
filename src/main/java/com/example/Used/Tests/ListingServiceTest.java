@@ -244,4 +244,39 @@ public class ListingServiceTest {
                         "Phone"
                 );
     }
+
+    @Test
+    void adminDeleteListing_soldListing_isRejected() {
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setRole(User.Role.ADMIN);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.SOLD);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(admin);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.adminDeleteListing(10L)
+                );
+
+        assertEquals(
+                "A sold listing cannot be removed",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .save(any());
+
+        verify(emailServices, never())
+                .sendListingDeletedEmail(anyString(), anyString());
+    }
 }
