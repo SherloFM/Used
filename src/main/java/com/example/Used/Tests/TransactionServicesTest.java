@@ -1,5 +1,6 @@
 package com.example.Used.Tests;
 
+import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Model.User;
@@ -17,9 +18,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class TransactionServicesTest {
@@ -117,6 +118,45 @@ public class TransactionServicesTest {
                 );
     }
 
+    @Test
+    void purchaseListing_soldListing_isRejected() {
 
+        User buyer = new User();
+        buyer.setId(1L);
+        buyer.setRole(User.Role.USER);
 
+        User seller = new User();
+        seller.setId(2L);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.SOLD);
+        listing.setUser(seller);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(buyer);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> transactionServices.purchaseListing(10L)
+                );
+
+        assertEquals(
+                "Listing is no longer available for purchase",
+                exception.getMessage()
+        );
+
+        verify(transactionsRepository, never())
+                .save(any());
+
+        verify(listingRepository, never())
+                .save(any());
+
+        verify(emailServices, never())
+                .sendListingSoldEmail(anyString(), anyString());
+    }
 }
