@@ -87,12 +87,25 @@ public class ListingService {
 
         User user = currentUserService.getCurrentUser();
 
+        if (user.getRole() == User.Role.ADMIN) {
+            throw new InformationExistException(
+                    "Admins cannot edit listings"
+            );
+        }
+
         Listings listing = listingsRepository
                 .findByIdAndUserId(id, user.getId())
                 .orElseThrow(() ->
                         new InformationExistException(
                                 "Listing not found or you are not the owner"
                         ));
+
+        if (listing.getStatus() != Listings.Status.ACTIVE) {
+            throw new InformationExistException(
+                    "Only active listings can be edited"
+            );
+        }
+
 
         listing.setTitle(listingRequest.getTitle());
         listing.setDescription(listingRequest.getDescription());
