@@ -103,5 +103,43 @@ class UserServiceTest {
         verify(loginRateLimiter)
                 .resetAttempts("test@example.com");
     }
+
+    @Test
+    void loginUser_wrongPassword_returnsUnauthorized() {
+
+        LoginRequests request = new LoginRequests();
+        request.setEmail("test@example.com");
+        request.setPassword("wrongPassword");
+
+        User user = new User();
+        user.setEmail("test@example.com");
+        user.setBanned(false);
+
+        when(loginRateLimiter.isAllowed("test@example.com"))
+                .thenReturn(true);
+
+        when(userRepository.findByEmail("test@example.com"))
+                .thenReturn(user);
+
+        when(authenticationManager.authenticate(any(
+                UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new RuntimeException());
+
+        ResponseEntity<?> response =
+                userService.loginUser(request);
+
+        assertEquals(401, response.getStatusCode().value());
+
+        LoginResponses body =
+                (LoginResponses) response.getBody();
+
+        assertEquals(
+                "Invalid email or password",
+                body.getMessage()
+        );
+
+        verify(loginRateLimiter)
+                .recordFailedAttempt("test@example.com");
+    }
 }
 
