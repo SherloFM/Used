@@ -4,6 +4,7 @@ import com.example.Used.Model.Listings;
 import com.example.Used.Service.ListingService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,6 +60,20 @@ public class ListingsController {
                 "Listing deleted successfully"
         );
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/admin/{id}")
+    public ResponseEntity<?> adminDeleteListing(
+            @PathVariable Long id
+    ) {
+
+        listingsService.adminDeleteListing(id);
+
+        return ResponseEntity.ok(
+                "Listing removed by administrator"
+        );
+    }
+
 
     // UPLOAD IMAGE
     @PutMapping("/{id}/image")
