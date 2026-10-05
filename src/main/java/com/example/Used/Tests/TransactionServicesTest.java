@@ -1,6 +1,7 @@
 package com.example.Used.Tests;
 
 import com.example.Used.Exceptions.InformationExistException;
+import com.example.Used.Exceptions.ResourceNotFoundException;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Model.User;
@@ -258,6 +259,28 @@ public class TransactionServicesTest {
 
         verify(listingRepository, never())
                 .findById(anyLong());
+
+        verify(transactionsRepository, never())
+                .save(any());
+    }
+
+    @Test
+    void purchaseListing_missingListing_throwsException() {
+
+        User buyer = new User();
+        buyer.setId(1L);
+        buyer.setRole(User.Role.USER);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(buyer);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> transactionServices.purchaseListing(10L)
+        );
 
         verify(transactionsRepository, never())
                 .save(any());
