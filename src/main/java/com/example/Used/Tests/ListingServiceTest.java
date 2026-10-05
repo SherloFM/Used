@@ -1,5 +1,6 @@
 package com.example.Used.Tests;
 
+import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.ListingRepository;
@@ -16,8 +17,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ListingServiceTest {
@@ -85,7 +86,36 @@ public class ListingServiceTest {
                 .save(listing);
     }
 
+    @Test
+    void deleteListing_soldListing_isRejected() {
 
+        User user = new User();
+        user.setId(1L);
+        user.setRole(User.Role.USER);
 
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.SOLD);
+        listing.setUser(user);
 
+        when(currentUserService.getCurrentUser())
+                .thenReturn(user);
+
+        when(listingRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(listing));
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> listingService.deleteListing(10L)
+                );
+
+        assertEquals(
+                "Only active listings can be removed",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .save(any());
+    }
 }
