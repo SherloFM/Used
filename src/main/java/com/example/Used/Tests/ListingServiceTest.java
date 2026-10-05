@@ -204,4 +204,44 @@ public class ListingServiceTest {
         verify(listingRepository, never())
                 .findByIdAndUserId(anyLong(), anyLong());
     }
+
+    @Test
+    void adminDeleteListing_activeListing_becomesDelisted() {
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setRole(User.Role.ADMIN);
+
+        User seller = new User();
+        seller.setId(2L);
+        seller.setEmail("seller@example.com");
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setTitle("Phone");
+        listing.setStatus(Listings.Status.ACTIVE);
+        listing.setUser(seller);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(admin);
+
+        when(listingRepository.findById(10L))
+                .thenReturn(Optional.of(listing));
+
+        listingService.adminDeleteListing(10L);
+
+        assertEquals(
+                Listings.Status.DELISTED,
+                listing.getStatus()
+        );
+
+        verify(listingRepository)
+                .save(listing);
+
+        verify(emailServices)
+                .sendListingDeletedEmail(
+                        "seller@example.com",
+                        "Phone"
+                );
+    }
 }
