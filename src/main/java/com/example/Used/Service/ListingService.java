@@ -147,6 +147,44 @@ public class ListingService {
         listingsRepository.save(listing);
     }
 
+    public void adminDeleteListing(Long id) {
+
+        User admin = currentUserService.getCurrentUser();
+
+        if (admin.getRole() != User.Role.ADMIN) {
+            throw new InformationExistException(
+                    "Only admins can remove listings"
+            );
+        }
+
+        Listings listing = listingsRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Listing not found"
+                        )
+                );
+
+        // Admin cannot remove something that is already sold
+        if (listing.getStatus() == Listings.Status.SOLD) {
+            throw new InformationExistException(
+                    "A sold listing cannot be removed"
+            );
+        }
+
+        String sellerEmail = listing.getUser().getEmail();
+        String listingTitle = listing.getTitle();
+
+        listing.setStatus(Listings.Status.DELISTED);
+
+        listingsRepository.save(listing);
+
+        // Notify owner
+        emailServices.sendListingDeletedEmail(
+                sellerEmail,
+                listingTitle
+        );
+    }
+
     // UPLOAD / CHANGE LISTING IMAGE
     public Listings uploadImage(
             Long id,

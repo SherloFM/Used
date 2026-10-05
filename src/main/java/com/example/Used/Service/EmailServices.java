@@ -47,4 +47,23 @@ public class EmailServices {
 
         javaMailSender.send(message);
     }
+    public void sendListingDeletedEmail(
+            String sellerEmail,
+            String listingTitle
+    ) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(sellerEmail);
+        message.setSubject("Used - Your Listing Was Removed");
+
+        message.setText(
+                "Your listing has been removed by an administrator.\n\n" +
+                        "Listing: " + listingTitle + "\n\n" +
+                        "The listing was removed because it was determined to be " +
+                        "invalid or inappropriate."
+        );
+
+        javaMailSender.send(message);
+    }
 }
