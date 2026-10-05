@@ -1,6 +1,7 @@
 package com.example.Used.Tests;
 
 import com.example.Used.Model.Listings;
+import com.example.Used.Model.User;
 import com.example.Used.Repository.ListingRepository;
 import com.example.Used.Service.CurrentUserService;
 import com.example.Used.Service.EmailServices;
@@ -12,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
@@ -53,6 +55,37 @@ public class ListingServiceTest {
         verify(listingRepository)
                 .findByStatus(Listings.Status.ACTIVE);
     }
+
+    @Test
+    void deleteListing_activeListing_becomesDelisted() {
+
+        User user = new User();
+        user.setId(1L);
+        user.setRole(User.Role.USER);
+
+        Listings listing = new Listings();
+        listing.setId(10L);
+        listing.setStatus(Listings.Status.ACTIVE);
+        listing.setUser(user);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(user);
+
+        when(listingRepository.findByIdAndUserId(10L, 1L))
+                .thenReturn(Optional.of(listing));
+
+        listingService.deleteListing(10L);
+
+        assertEquals(
+                Listings.Status.DELISTED,
+                listing.getStatus()
+        );
+
+        verify(listingRepository)
+                .save(listing);
+    }
+
+
 
 
 }
