@@ -12,6 +12,7 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -69,4 +70,7 @@ public class Listings {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @OneToMany(mappedBy = "listing")
+    private List<Transactions> transactions;
 }
