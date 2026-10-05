@@ -84,12 +84,4 @@ public class ListingsController {
 
         return listingsService.uploadImage(id, img);
     }
-
-    // BUY
-    @PostMapping("/{id}/buy")
-    public Listings buyListing(
-            @PathVariable Long id
-    ) {
-        return listingsService.buyListing(id);
-    }
 }

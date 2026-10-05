@@ -207,47 +207,4 @@ public class ListingService {
 
         return listing;
     }
-
-    // BUY LISTING
-    public Listings buyListing(Long id){
-
-        User buyer = currentUserService.getCurrentUser();
-
-        // Admins cannot buy
-        if (buyer.getRole() == User.Role.ADMIN) {
-            throw new InformationExistException(
-                    "Admins cannot buy listings"
-            );
-        }
-
-        Listings listing = listingsRepository.findById(id).orElseThrow(() ->
-                        new ResourceNotFoundException("Listing not found"));
-
-        // Don't allow someone to buy their own listing
-        if (listing.getUser().getId().equals(buyer.getId())) {
-            throw new InformationExistException(
-                    "You cannot buy your own listing"
-            );
-        }
-
-        // Make sure listing is actually available
-        if (listing.getStatus() != Listings.Status.ACTIVE) {
-            throw new InformationExistException(
-                    "Listing is not available for purchase"
-            );
-        }
-
-        listing.setStatus(Listings.Status.SOLD);
-
-        listingsRepository.save(listing);
-
-        Listings savedListing = listingsRepository.save(listing);
-
-        emailServices.sendListingSoldEmail(
-                listing.getUser().getEmail(),
-                listing.getTitle()
-        );
-
-        return listing;
-    }
 }
