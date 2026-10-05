@@ -234,4 +234,32 @@ public class TransactionServicesTest {
         verify(listingRepository, never())
                 .save(any());
     }
+
+    @Test
+    void purchaseListing_admin_isRejected() {
+
+        User admin = new User();
+        admin.setId(1L);
+        admin.setRole(User.Role.ADMIN);
+
+        when(currentUserService.getCurrentUser())
+                .thenReturn(admin);
+
+        InformationExistException exception =
+                assertThrows(
+                        InformationExistException.class,
+                        () -> transactionServices.purchaseListing(10L)
+                );
+
+        assertEquals(
+                "Admins cannot buy listings",
+                exception.getMessage()
+        );
+
+        verify(listingRepository, never())
+                .findById(anyLong());
+
+        verify(transactionsRepository, never())
+                .save(any());
+    }
 }
