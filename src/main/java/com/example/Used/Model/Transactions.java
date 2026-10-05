@@ -21,7 +21,7 @@ public class Transactions{
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "listing_id", nullable = false)
+    @JoinColumn(name = "listing_id", nullable = false, unique = true)
     private Listings listing;
 
     @ManyToOne(fetch = FetchType.LAZY)
