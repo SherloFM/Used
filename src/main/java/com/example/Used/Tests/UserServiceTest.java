@@ -208,5 +208,35 @@ class UserServiceTest {
                 .authenticate(any());
     }
 
+    @Test
+    void loginUser_rateLimitExceeded_returnsTooManyRequests() {
+
+        LoginRequests request = new LoginRequests();
+        request.setEmail("test@example.com");
+        request.setPassword("password123");
+
+        when(loginRateLimiter.isAllowed("test@example.com"))
+                .thenReturn(false);
+
+        ResponseEntity<?> response =
+                userService.loginUser(request);
+
+        assertEquals(429, response.getStatusCode().value());
+
+        LoginResponses body =
+                (LoginResponses) response.getBody();
+
+        assertEquals(
+                "Too many login attempts",
+                body.getMessage()
+        );
+
+        verify(userRepository, never())
+                .findByEmail(anyString());
+
+        verify(authenticationManager, never())
+                .authenticate(any());
+    }
+
 }
 
