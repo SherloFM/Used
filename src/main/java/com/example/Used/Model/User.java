@@ -93,4 +93,12 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<Listings> listings;
 
+    @OneToMany(mappedBy = "buyer")
+    @JsonIgnore
+    private List<Transactions> purchases;
+
+    @OneToMany(mappedBy = "seller")
+    @JsonIgnore
+    private List<Transactions> sales;
+
 }
