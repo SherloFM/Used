@@ -173,5 +173,40 @@ class UserServiceTest {
         verify(authenticationManager, never())
                 .authenticate(any());
     }
+
+    @Test
+    void loginUser_bannedUser_returnsForbidden() {
+
+        LoginRequests request = new LoginRequests();
+        request.setEmail("banned@example.com");
+        request.setPassword("password123");
+
+        User user = new User();
+        user.setEmail("banned@example.com");
+        user.setBanned(true);
+
+        when(loginRateLimiter.isAllowed("banned@example.com"))
+                .thenReturn(true);
+
+        when(userRepository.findByEmail("banned@example.com"))
+                .thenReturn(user);
+
+        ResponseEntity<?> response =
+                userService.loginUser(request);
+
+        assertEquals(403, response.getStatusCode().value());
+
+        LoginResponses body =
+                (LoginResponses) response.getBody();
+
+        assertEquals(
+                "Account is banned",
+                body.getMessage()
+        );
+
+        verify(authenticationManager, never())
+                .authenticate(any());
+    }
+
 }
 
