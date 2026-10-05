@@ -1,7 +1,9 @@
 package com.example.Used.Controller;
 
 import com.example.Used.Model.Listings;
+import com.example.Used.Model.Transactions;
 import com.example.Used.Service.ListingService;
+import com.example.Used.Service.TransactionServices;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +19,7 @@ import java.util.List;
 public class ListingsController {
 
     private ListingService listingsService;
+    private TransactionServices transactionServices;
 
     // CREATE
     @PostMapping
@@ -83,5 +86,13 @@ public class ListingsController {
     ) throws IOException {
 
         return listingsService.uploadImage(id, img);
+    }
+
+    // BUY
+    @PostMapping("/{id}/buy")
+    public Transactions buyListing(
+            @PathVariable Long id
+    ) {
+        return transactionServices.purchaseListing(id);
     }
 }
