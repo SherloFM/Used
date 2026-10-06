@@ -2,6 +2,7 @@ package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Exceptions.ResourceNotFoundException;
+import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.User;
@@ -21,7 +22,7 @@ import java.util.List;
 @Service
 public class ListingService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ListingService.class);
+    private final AuditLogService auditLogService;
     private final ListingRepository listingsRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
@@ -30,11 +31,13 @@ public class ListingService {
     public ListingService(
             ListingRepository listingsRepository,
             CurrentUserService currentUserService,
-            EmailServices emailServices
+            EmailServices emailServices,
+            AuditLogService auditLogService
     ) {
         this.listingsRepository = listingsRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
+        this.auditLogService = auditLogService;
     }
 
     // CREATE LISTING
@@ -55,9 +58,13 @@ public class ListingService {
         listing.setLocation(listingRequest.getLocation());
 
         listing.setStatus(Listings.Status.ACTIVE);
-
-        // Get owner from logged-in user
         listing.setUser(user);
+
+        auditLogService.log(
+                AuditLog.AuditAction.LISTING_CREATED,
+                user,
+                "Created listing '" + listing.getTitle() + "' (id=" + listing.getId() + ")"
+        );
 
         listingsRepository.save(listing);
 
