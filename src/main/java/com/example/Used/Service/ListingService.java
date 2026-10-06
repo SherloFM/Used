@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -211,37 +212,49 @@ public class ListingService {
     }
 
     public List<Listings> searchListings(ListingSearchRequests request) {
-        String keyword = request.getKeyword();
+        // 1. Handle Keyword (Default to empty string to avoid SQL bytea null bug)
+        String keyword = (request.getKeyword() != null) ? request.getKeyword().trim() : "";
+
+        // 2. Handle Categories
         List<Long> categoryIds = request.getCategoryIds();
+        boolean hasCategories = (categoryIds != null && !categoryIds.isEmpty());
 
-        // Default to ascending if not provided or invalid
-        String sortDir = (request.getSortDir() != null && request.getSortDir().equalsIgnoreCase("desc"))
-                ? "desc" : "asc";
-
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by("price").descending()
-                : Sort.by("price").ascending();
-
-        // We only search ACTIVE listings
-        Listings.Status status = Listings.Status.ACTIVE;
-
-        // 1. No categories selected -> use simple search
-        if (categoryIds == null || categoryIds.isEmpty()) {
-            if (keyword == null || keyword.trim().isEmpty()) {
-                // No keyword, no categories -> return all active sorted by price
-                return listingsRepository.findByStatus(status, sort);
-            } else {
-                // Keyword only -> search by title
-                return listingsRepository.findByStatusAndTitleContainingIgnoreCase(status, keyword, sort);
-            }
+        // If no categories are provided, pass a dummy list so the query doesn't fail
+        if (!hasCategories) {
+            categoryIds = new ArrayList<>();
         }
 
-        // 2. Categories selected -> use Venn diagram (AND) logic
-        return listingsRepository.searchByCategories(
-                status,
+        // 3. Handle Sorting (Price, Condition, or Both)
+        String sortDirStr = (request.getSortDir() != null && request.getSortDir().equalsIgnoreCase("desc"))
+                ? "desc" : "asc";
+        Sort.Direction direction = sortDirStr.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+
+        Sort sort;
+        String sortBy = request.getSortBy();
+
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            // If user specifies a field, sort by it
+            // Note: If they want "both", we can default to price then condition
+            if (sortBy.equalsIgnoreCase("price")) {
+                sort = Sort.by(direction, "price").and(Sort.by(direction, "condition"));
+            } else if (sortBy.equalsIgnoreCase("condition")) {
+                sort = Sort.by(direction, "condition").and(Sort.by(direction, "price"));
+            } else {
+                // Fallback to price if they type something else
+                sort = Sort.by(direction, "price");
+            }
+        } else {
+            // Default sort if body is empty or sortBy is missing
+            sort = Sort.by(Sort.Direction.ASC, "price");
+        }
+
+        // 4. Execute the single unified query
+        return listingsRepository.searchListingsUnified(
+                Listings.Status.ACTIVE,
                 keyword,
+                hasCategories,
                 categoryIds,
-                categoryIds.size(),
+                hasCategories ? categoryIds.size() : 0,
                 sort
         );
     }

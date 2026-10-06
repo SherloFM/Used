@@ -99,7 +99,11 @@ public class ListingsController {
 
     // SEARCH, FILTER, AND SORT
     @GetMapping("/search")
-    public List<Listings> searchListings(@RequestBody ListingSearchRequests request) {
+    public List<Listings> searchListings(@RequestBody(required = false) ListingSearchRequests request) {
+        // If body is completely empty, create a blank request object so it doesn't crash
+        if (request == null) {
+            request = new ListingSearchRequests();
+        }
         return listingsService.searchListings(request);
     }
 }
