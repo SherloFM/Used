@@ -152,6 +152,13 @@ public class ListingService {
         listing.setStatus(Listings.Status.DELISTED);
 
         listingsRepository.save(listing);
+
+        // AUDIT: listing delisted by owner
+        auditLogService.log(
+                AuditLog.AuditAction.LISTING_DELISTED,
+                user,
+                "Owner cancelled listing '" + listing.getTitle() + "' (id=" + id + ")"
+        );
     }
 
     public void adminDeleteListing(Long id) {
