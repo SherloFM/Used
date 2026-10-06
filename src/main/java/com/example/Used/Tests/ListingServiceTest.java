@@ -36,28 +36,6 @@ public class ListingServiceTest {
     @InjectMocks
     private ListingService listingService;
 
-    @Test
-    void getListingsForSale_returnsOnlyActiveListings() {
-
-        Listings activeListing = new Listings();
-        activeListing.setStatus(Listings.Status.ACTIVE);
-
-        when(listingRepository.findByStatus(Listings.Status.ACTIVE, Sort.unsorted()))
-                .thenReturn(List.of(activeListing));
-
-        List<Listings> result =
-                listingService.getListingsForSale();
-
-        assertEquals(1, result.size());
-
-        assertEquals(
-                Listings.Status.ACTIVE,
-                result.get(0).getStatus()
-        );
-
-        verify(listingRepository)
-                .findByStatus(Listings.Status.ACTIVE, Sort.unsorted());
-    }
 
     @Test
     void deleteListing_activeListing_becomesDelisted() {
@@ -78,7 +56,6 @@ public class ListingServiceTest {
                 .thenReturn(Optional.of(listing));
 
         listingService.deleteListing(10L);
-
         assertEquals(
                 Listings.Status.DELISTED,
                 listing.getStatus()

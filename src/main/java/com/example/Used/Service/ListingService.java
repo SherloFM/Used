@@ -76,12 +76,6 @@ public class ListingService {
         return listingsRepository.findAll();
     }
 
-    // GET LISTINGS THAT ARE FOR SALE
-    public List<Listings> getListingsForSale() {
-
-        return listingsRepository.findByStatus(Listings.Status.ACTIVE, Sort.unsorted());
-    }
-
     // UPDATE LISTING
     public Listings updateListing(
             Long id,
