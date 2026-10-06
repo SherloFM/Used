@@ -99,11 +99,12 @@ public class ListingsController {
 
     // SEARCH, FILTER, AND SORT
     @GetMapping("/search")
-    public List<Listings> searchListings(@RequestBody(required = false) ListingSearchRequests request) {
-        // If body is completely empty, create a blank request object so it doesn't crash
-        if (request == null) {
-            request = new ListingSearchRequests();
-        }
-        return listingsService.searchListings(request);
+    public List<Listings> searchListings(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) List<Long> categoryIds,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false, defaultValue = "asc") String sortDir
+    ) {
+        return listingsService.searchListings(keyword, categoryIds, sortBy, sortDir);
     }
 }
