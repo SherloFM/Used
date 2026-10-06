@@ -78,7 +78,7 @@ public class ListingService {
     // GET LISTINGS THAT ARE FOR SALE
     public List<Listings> getListingsForSale() {
 
-        return listingsRepository.findByStatus(Listings.Status.ACTIVE);
+        return listingsRepository.findByStatus(Listings.Status.ACTIVE, Sort.unsorted());
     }
 
     // UPDATE LISTING

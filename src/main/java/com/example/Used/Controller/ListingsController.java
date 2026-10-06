@@ -1,6 +1,7 @@
 package com.example.Used.Controller;
 
 import com.example.Used.Model.Listings;
+import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Service.ListingService;
 import com.example.Used.Service.TransactionServices;
@@ -94,5 +95,11 @@ public class ListingsController {
             @PathVariable Long id
     ) {
         return transactionServices.purchaseListing(id);
+    }
+
+    // SEARCH, FILTER, AND SORT
+    @GetMapping("/search")
+    public List<Listings> searchListings(@RequestBody ListingSearchRequests request) {
+        return listingsService.searchListings(request);
     }
 }
