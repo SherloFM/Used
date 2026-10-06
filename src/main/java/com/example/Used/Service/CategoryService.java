@@ -5,6 +5,8 @@ import com.example.Used.Model.Categories;
 import com.example.Used.Repository.CategoryRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class CategoryService {
     private final CategoryRepository categoryRepository;
@@ -29,6 +31,10 @@ public class CategoryService {
         category.setDescription(categoryRequest.getDescription());
 
         return categoryRepository.save(category);
+    }
+
+    public List<Categories> getCategories() {
+        return categoryRepository.findAll();
     }
 }
 
