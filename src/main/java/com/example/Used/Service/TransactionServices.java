@@ -2,6 +2,7 @@ package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Exceptions.ResourceNotFoundException;
+import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Model.User;
@@ -78,6 +79,14 @@ public class TransactionServices {
 
         listingRepository.save(listing);
 
+
+        auditLogService.log(
+                AuditLog.AuditAction.LISTING_SOLD,
+                buyer,
+                "Listing '" + listing.getTitle() + "' (id=" + listingId + ") sold for "
+                        + listing.getPrice() + " to user id=" + buyer.getId()
+                        + " from seller id=" + seller.getId()
+        );
 
         // Notify seller
         emailServices.sendListingSoldEmail(
