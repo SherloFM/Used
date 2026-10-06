@@ -2,6 +2,7 @@ package com.example.Used.Model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jdk.jfr.Category;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,7 +13,9 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -73,4 +76,12 @@ public class Listings {
 
     @OneToMany(mappedBy = "listing")
     private List<Transactions> transactions;
+
+    @ManyToMany
+    @JoinTable(
+            name = "listing_categories",
+            joinColumns = @JoinColumn(name = "listing_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories = new HashSet<>();
 }
