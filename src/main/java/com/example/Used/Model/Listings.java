@@ -77,11 +77,12 @@ public class Listings {
     @OneToMany(mappedBy = "listing")
     private List<Transactions> transactions;
 
+    @JsonIgnore
     @ManyToMany
     @JoinTable(
             name = "listing_categories",
             joinColumns = @JoinColumn(name = "listing_id"),
             inverseJoinColumns = @JoinColumn(name = "category_id")
     )
-    private Set<Category> categories = new HashSet<>();
+    private Set<Categories> categories = new HashSet<>();
 }
