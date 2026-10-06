@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +42,7 @@ public class ListingServiceTest {
         Listings activeListing = new Listings();
         activeListing.setStatus(Listings.Status.ACTIVE);
 
-        when(listingRepository.findByStatus(Listings.Status.ACTIVE))
+        when(listingRepository.findByStatus(Listings.Status.ACTIVE, Sort.unsorted()))
                 .thenReturn(List.of(activeListing));
 
         List<Listings> result =
@@ -55,7 +56,7 @@ public class ListingServiceTest {
         );
 
         verify(listingRepository)
-                .findByStatus(Listings.Status.ACTIVE);
+                .findByStatus(Listings.Status.ACTIVE, Sort.unsorted());
     }
 
     @Test
