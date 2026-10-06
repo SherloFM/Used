@@ -1,6 +1,7 @@
 package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
+import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Requests.LoginRequests;
 import com.example.Used.Model.Requests.passwordManager.ChangePasswordRequests;
 import com.example.Used.Model.Requests.passwordManager.ForgetPasswordRequests;
@@ -36,6 +37,7 @@ public class UserService {
     private final EmailServices emailServices;
     private final LoginRateLimiter loginRateLimiter;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public UserService(
@@ -46,7 +48,8 @@ public class UserService {
             JWTUtilities jwtUtilities,
             EmailServices emailServices,
             LoginRateLimiter loginRateLimiter,
-                    CurrentUserService currentUserService
+                    CurrentUserService currentUserService,
+            AuditLogService auditLogService
 
     ){
         this.authenticationManager = authenticationManager;
@@ -57,6 +60,7 @@ public class UserService {
         this.emailServices = emailServices;
         this.loginRateLimiter = loginRateLimiter;
         this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
 
@@ -170,6 +174,12 @@ public class UserService {
         user.setVerificationCodeExpiration(null);
 
         userRepository.save(user);
+
+        auditLogService.log(
+                AuditLog.AuditAction.EMAIL_VERIFIED,
+                user,
+                "Email verified for " + user.getEmail()
+        );
 
         return ResponseEntity.ok("Email verified successfully");
     }
