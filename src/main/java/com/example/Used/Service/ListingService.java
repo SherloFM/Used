@@ -7,6 +7,8 @@ import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.ListingRepository;
 import com.example.Used.Repository.ListingRepository;
+import org.junit.platform.commons.logging.Logger;
+import org.junit.platform.commons.logging.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import java.util.List;
 @Service
 public class ListingService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ListingService.class);
     private final ListingRepository listingsRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
