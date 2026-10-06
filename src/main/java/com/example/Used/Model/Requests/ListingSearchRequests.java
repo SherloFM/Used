@@ -10,5 +10,6 @@ import java.util.List;
 public class ListingSearchRequests {
     private String keyword;          // Text to search in title
     private List<Long> categoryIds;  // List of category IDs to filter by (AND logic)
-    private String sortDir;          // "asc" or "desc"
+    private String sortBy;           // "price", "condition", or leave empty
+    private String sortDir;          // "asc" or "desc"          // "asc" or "desc"
 }
