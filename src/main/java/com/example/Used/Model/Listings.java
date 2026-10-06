@@ -2,6 +2,8 @@ package com.example.Used.Model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jdk.jfr.Category;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,6 +32,7 @@ public class Listings {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Title cannot be empty")
     @Column
     private String title;
 
@@ -39,15 +42,19 @@ public class Listings {
 
     private String imgtype;
 
+    @NotBlank(message = "Description cannot be empty")
     @Column
     private String description;
 
+    @Positive(message = "Price must be greater than 0")
     @Column
     private double price;
 
+    @NotBlank(message = "Condition cannot be empty")
     @Column
     private String condition;
 
+    @NotBlank(message = "Location cannot be empty")
     @Column
     private String location;
 
