@@ -68,13 +68,13 @@ public class TransactionServices {
         transaction.setAmount(listing.getPrice());
         transaction.setStatus(Transactions.Status.COMPLETED);
 
+        Transactions savedTransaction =
+                transactionsRepository.save(transaction);
         // Mark listing as sold
         listing.setStatus(Listings.Status.SOLD);
 
         listingRepository.save(listing);
 
-        Transactions savedTransaction =
-                transactionsRepository.save(transaction);
 
         // Notify seller
         emailServices.sendListingSoldEmail(
