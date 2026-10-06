@@ -36,4 +36,12 @@ public class CategoryController {
         return categoryService.getCategory(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public void deleteCategory(
+            @PathVariable Long id
+    ) {
+        categoryService.deleteCategory(id);
+    }
+
 }
