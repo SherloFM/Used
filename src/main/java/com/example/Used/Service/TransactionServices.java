@@ -16,15 +16,18 @@ public class TransactionServices {
     private final ListingRepository listingRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
+    private final AuditLogService auditLogService;
 
     public TransactionServices(TransactionsRepository transactionsRepository,
                                ListingRepository listingRepository,
                                CurrentUserService currentUserService,
-                               EmailServices emailServices) {
+                               EmailServices emailServices,
+                               AuditLogService auditLogService) {
         this.transactionsRepository = transactionsRepository;
         this.listingRepository = listingRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
