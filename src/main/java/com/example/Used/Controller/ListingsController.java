@@ -5,6 +5,7 @@ import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Service.ListingService;
 import com.example.Used.Service.TransactionServices;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,7 +26,7 @@ public class ListingsController {
     // CREATE
     @PostMapping
     public Listings createListing(
-            @RequestBody Listings listing
+            @Valid @RequestBody Listings listing
     ) {
         return listingsService.createListing(listing);
     }
@@ -48,7 +49,7 @@ public class ListingsController {
     @PutMapping("/{id}")
     public Listings updateListing(
             @PathVariable Long id,
-            @RequestBody Listings listing
+            @Valid @RequestBody Listings listing
     ) {
         return listingsService.updateListing(id, listing);
     }
