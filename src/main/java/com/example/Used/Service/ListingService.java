@@ -205,30 +205,31 @@ public class ListingService {
         return listing;
     }
 
-    public List<Listings> searchListings(ListingSearchRequests request) {
+    public List<Listings> searchListings(
+            String keyword,
+            List<Long> categoryIds,
+            String sortBy,
+            String sortDir
+    ) {
         // 1. Handle Keyword (Default to empty string to avoid SQL bytea null bug)
-        String keyword = (request.getKeyword() != null) ? request.getKeyword().trim() : "";
+        String cleanKeyword = (keyword != null) ? keyword.trim() : "";
 
         // 2. Handle Categories
-        List<Long> categoryIds = request.getCategoryIds();
         boolean hasCategories = (categoryIds != null && !categoryIds.isEmpty());
 
-        // If no categories are provided, pass a dummy list so the query doesn't fail
+        // If no categories are provided, pass an empty list so the query doesn't fail
         if (!hasCategories) {
             categoryIds = new ArrayList<>();
         }
 
         // 3. Handle Sorting (Price, Condition, or Both)
-        String sortDirStr = (request.getSortDir() != null && request.getSortDir().equalsIgnoreCase("desc"))
-                ? "desc" : "asc";
-        Sort.Direction direction = sortDirStr.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        String cleanSortDir = (sortDir != null && sortDir.equalsIgnoreCase("desc")) ? "desc" : "asc";
+        Sort.Direction direction = cleanSortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
 
         Sort sort;
-        String sortBy = request.getSortBy();
 
         if (sortBy != null && !sortBy.trim().isEmpty()) {
             // If user specifies a field, sort by it
-            // Note: If they want "both", we can default to price then condition
             if (sortBy.equalsIgnoreCase("price")) {
                 sort = Sort.by(direction, "price").and(Sort.by(direction, "condition"));
             } else if (sortBy.equalsIgnoreCase("condition")) {
@@ -238,14 +239,14 @@ public class ListingService {
                 sort = Sort.by(direction, "price");
             }
         } else {
-            // Default sort if body is empty or sortBy is missing
+            // Default sort if sortBy is missing
             sort = Sort.by(Sort.Direction.ASC, "price");
         }
 
         // 4. Execute the single unified query
         return listingsRepository.searchListingsUnified(
                 Listings.Status.ACTIVE,
-                keyword,
+                cleanKeyword,
                 hasCategories,
                 categoryIds,
                 hasCategories ? categoryIds.size() : 0,
