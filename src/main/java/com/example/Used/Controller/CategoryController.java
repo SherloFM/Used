@@ -29,4 +29,11 @@ public class CategoryController {
         return categoryService.getCategories();
     }
 
+    @GetMapping("/{id}")
+    public Categories getCategory(
+            @PathVariable Long id
+    ) {
+        return categoryService.getCategory(id);
+    }
+
 }
