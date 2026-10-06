@@ -197,6 +197,12 @@ public class ListingService {
                 sellerEmail,
                 listingTitle
         );
+
+        auditLogService.log(
+                AuditLog.AuditAction.LISTING_DELISTED,
+                admin,
+                "Admin removed listing '" + listingTitle + "' (id=" + id + ")"
+        );
     }
 
     // UPLOAD / CHANGE LISTING IMAGE
