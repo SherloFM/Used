@@ -3,10 +3,12 @@ package com.example.Used.Service;
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Exceptions.ResourceNotFoundException;
 import com.example.Used.Model.Listings;
+import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.ListingRepository;
 import com.example.Used.Repository.ListingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -206,5 +208,41 @@ public class ListingService {
         listingsRepository.save(listing);
 
         return listing;
+    }
+
+    public List<Listings> searchListings(ListingSearchRequests request) {
+        String keyword = request.getKeyword();
+        List<Long> categoryIds = request.getCategoryIds();
+
+        // Default to ascending if not provided or invalid
+        String sortDir = (request.getSortDir() != null && request.getSortDir().equalsIgnoreCase("desc"))
+                ? "desc" : "asc";
+
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by("price").descending()
+                : Sort.by("price").ascending();
+
+        // We only search ACTIVE listings
+        Listings.Status status = Listings.Status.ACTIVE;
+
+        // 1. No categories selected -> use simple search
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            if (keyword == null || keyword.trim().isEmpty()) {
+                // No keyword, no categories -> return all active sorted by price
+                return listingsRepository.findByStatus(status, sort);
+            } else {
+                // Keyword only -> search by title
+                return listingsRepository.findByStatusAndTitleContainingIgnoreCase(status, keyword, sort);
+            }
+        }
+
+        // 2. Categories selected -> use Venn diagram (AND) logic
+        return listingsRepository.searchByCategories(
+                status,
+                keyword,
+                categoryIds,
+                categoryIds.size(),
+                sort
+        );
     }
 }
