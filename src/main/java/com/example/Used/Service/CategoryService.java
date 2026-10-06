@@ -1,6 +1,7 @@
 package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
+import com.example.Used.Exceptions.ResourceNotFoundException;
 import com.example.Used.Model.Categories;
 import com.example.Used.Repository.CategoryRepository;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,18 @@ public class CategoryService {
 
     public List<Categories> getCategories() {
         return categoryRepository.findAll();
+    }
+
+    public void deleteCategory(Long id) {
+
+        Categories category = categoryRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Category not found"
+                        )
+                );
+
+        categoryRepository.delete(category);
     }
 }
 
