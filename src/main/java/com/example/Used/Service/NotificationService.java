@@ -62,4 +62,17 @@ public class NotificationService {
         });
     }
 
+    public void broadcast(String eventName, Object data) {
+        emittersByUser.values().forEach(bucket ->
+                bucket.removeIf(emitter -> {
+                    try {
+                        emitter.send(SseEmitter.event().name(eventName).data(data));
+                        return false;
+                    } catch (IOException e) {
+                        return true;
+                    }
+                })
+        );
+    }
+
 }
