@@ -55,11 +55,14 @@ public class AdminService {
 
     public User unbanUser(Long id) {
         User user = getUserById(id);
+        String userEmail = user.getEmail();
 
         user.setBanned(false);
         auditLogService.log(
                 AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
                 "Unbanned user id=" + user.getId() + " (" + user.getEmail() + ")");
+
+        emailServices.sendAccountUnbannedEmail(userEmail); // then notify
 
         return userRepository.save(user);
     }
