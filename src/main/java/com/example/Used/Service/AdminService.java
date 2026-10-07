@@ -13,16 +13,19 @@ public class AdminService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final CurrentUserService currentUserService;
+    private final EmailServices emailServices;
 
     public AdminService(
             UserRepository userRepository,
             AuditLogService auditLogService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            EmailServices emailServices
     ) {
 
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
         this.currentUserService = currentUserService;
+        this.emailServices  = emailServices;
     }
 
     public List<User> getAllUsers() {
@@ -36,12 +39,16 @@ public class AdminService {
     }
 
     public User banUser(Long id) {
+
         User user = getUserById(id);
+        String userEmail = user.getEmail();
 
         user.setBanned(true);
         auditLogService.log(
                 AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
                 "Banned user id=" + user.getId() + " (" + user.getEmail() + ")");
+
+        emailServices.sendAccountBannedEmail(userEmail);
 
         return userRepository.save(user);
     }

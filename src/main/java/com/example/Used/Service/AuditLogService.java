@@ -3,8 +3,8 @@ package com.example.Used.Service;
 import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.AuditRepository;
-import org.junit.platform.commons.logging.Logger;
-import org.junit.platform.commons.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

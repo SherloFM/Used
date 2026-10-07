@@ -85,4 +85,59 @@ public class EmailServices {
 
         javaMailSender.send(message);
     }
+
+    public void sendAccountBannedEmail(String email) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(email);
+        message.setSubject("Used - Your Account Has Been Suspended");
+
+        message.setText(
+                "Hello,\n\n" +
+                        "Your Used account has been suspended by an administrator.\n\n" +
+                        "While suspended, you will not be able to log in, create listings, " +
+                        "or make purchases.\n\n" +
+                        "If you believe this was a mistake, please contact our support team.\n\n" +
+                        "Thank you."
+        );
+
+        javaMailSender.send(message);
+    }
+
+    public void sendAccountUnbannedEmail(String email) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(email);
+        message.setSubject("Used - Your Account Has Been Reinstated");
+
+        message.setText(
+                "Hello,\n\n" +
+                        "Good news — your Used account has been reinstated.\n\n" +
+                        "You can now log in and use the marketplace as before.\n\n" +
+                        "Thank you for your patience."
+        );
+
+        javaMailSender.send(message);
+    }
+
+    public void sendAccountDeletedEmail(String email) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(email);
+        message.setSubject("Used - Your Account Has Been Deleted");
+
+        message.setText(
+                "Hello,\n\n" +
+                        "Your Used account has been permanently deleted by an administrator.\n\n" +
+                        "All of your data, including your profile and listings, has been " +
+                        "removed and cannot be recovered.\n\n" +
+                        "If this was a mistake, you may register a new account.\n\n" +
+                        "Thank you."
+        );
+
+        javaMailSender.send(message);
+    }
 }
