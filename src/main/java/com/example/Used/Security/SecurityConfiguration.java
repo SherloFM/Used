@@ -38,39 +38,57 @@ public class SecurityConfiguration {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()).
-                sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).
-                authorizeHttpRequests(auth -> auth.requestMatchers(
-                                "/auth/user",
+        http.csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // 1. STATIC RESOURCES (Always Public)
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+
+                        // 2. SWAGGER (Always Public for Dev)
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
+
+                        // 3. PUBLIC API ENDPOINTS (Auth Flows)
+                        .requestMatchers(
                                 "/auth/user/register",
                                 "/auth/user/login",
                                 "/auth/user/verify",
+                                "/auth/user/resend-verify",
                                 "/auth/user/forget-password",
                                 "/auth/user/reset-password",
-                        "/error"
+                                "/api/notifications/stream",
+                                "/api/notifications/test-send/**",
+                                "/api/categories",
+                                "/api/listings/search",
+                                "/api/listings/*"
                         ).permitAll()
+
+                        // 4. PUBLIC HTML PAGES (Views)
+                        // IMPORTANT: List these explicitly. Do not rely on wildcards for single pages unless necessary.
                         .requestMatchers(
-                                "/swagger-ui/**",      // The UI itself
-                                "/v3/api-docs/**",     // The JSON definition
-                                "/swagger-resources/**",
-                                "/webjars/**"
-                        ).permitAll()
-                        .requestMatchers(
-                                "/",                  // Dashboard (visual shell only)
-                                "/register",          // Register Page
-                                "/verify",            // Verify Page
-                                "/login",             // Login Page
-                                "/css/**",
-                                "/js/**",
+                                "/",
+                                "/login",
+                                "/register",
+                                "/verify",
+                                "/profile",
+                                "/create-listing",
+                                "/forgot-password",
+                                "/listing/**",
+                                "/css/**", "/js/**",
                                 "/images/**",
-                                "/favicon.ico",
-                                "/error"
-                        ).permitAll()
-                        .anyRequest().authenticated());
+                                "/favicon.ico", "/error"
+                                ).permitAll()
+
+                        // 5. ERROR PAGE (Must be public to avoid loops)
+                        .requestMatchers("/error").permitAll()
+
+                        // 6. SECURE EVERYTHING ELSE
+                        .anyRequest().authenticated()
+                );
 
         http.addFilterBefore(
                 authenticationJwtTokenFilter(),
                 UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 

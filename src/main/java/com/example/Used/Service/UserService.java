@@ -1,6 +1,7 @@
 package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
+import com.example.Used.Exceptions.RateLimitException;
 import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Requests.LoginRequests;
 import com.example.Used.Model.Requests.passwordManager.ChangePasswordRequests;
@@ -15,6 +16,7 @@ import com.example.Used.Security.LoginRateLimiter;
 import com.example.Used.Security.MyUserDetails;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,8 +26,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.example.Used.Model.Requests.VerificationRequests;
+
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class UserService {
@@ -38,6 +43,10 @@ public class UserService {
     private final LoginRateLimiter loginRateLimiter;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
+    private final ConcurrentHashMap<String, Long> lastResendTime = new ConcurrentHashMap<>();
+
+    @Value("${verification.resend.cooldown-seconds:60}")
+    private int cooldownSeconds;
 
     @Autowired
     public UserService(
@@ -64,6 +73,7 @@ public class UserService {
     }
 
 
+
     private static User getCurrentLoggedInUser(){
         MyUserDetails userDetails = (MyUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
@@ -86,6 +96,8 @@ public class UserService {
 
             User savedUser = userRepository.save(userObject);
 
+            lastResendTime.put(savedUser.getEmail(), Instant.now().getEpochSecond());
+
             auditLogService.log(
                     AuditLog.AuditAction.USER_REGISTERED,
                     savedUser,
@@ -105,6 +117,56 @@ public class UserService {
             throw new InformationExistException("already exists");
         }
     }
+
+    public ResponseEntity<?> resendVerificationCode(String email) {
+
+        // 1. Normalize email
+        String normalizedEmail = email.toLowerCase().trim();
+
+        // 2. Check Rate Limit
+        Long lastTime = lastResendTime.get(normalizedEmail);
+        long currentTime = Instant.now().getEpochSecond();
+
+        if (lastTime != null && (currentTime - lastTime) < cooldownSeconds) {
+            long remaining = cooldownSeconds - (currentTime - lastTime);
+            throw new RateLimitException("Please wait " + remaining + " seconds before requesting a new code.");
+        }
+
+        // 3. Find User
+        User user = userRepository.findByEmail(normalizedEmail);
+        if (user == null) {
+            // Generic message to avoid leaking existence of account
+            return ResponseEntity.ok("If the email exists, a new code has been sent.");
+        }
+
+        // 4. Generate New Code & Expiry
+        String newCode = String.format("%06d", new Random().nextInt(1000000));
+        user.setVerificationCode(newCode);
+        user.setVerificationCodeExpiration(LocalDateTime.now().plusMinutes(10));
+
+        userRepository.save(user);
+
+        // 5. Update Last Sent Time
+        lastResendTime.put(normalizedEmail, currentTime);
+
+        // 6. Send Email
+        try {
+            emailServices.sendVerificationEmail(normalizedEmail, newCode);
+        } catch (Exception e) {
+            // Log error internally but return generic success to user
+            System.err.println("Failed to send verification email: " + e.getMessage());
+        }
+
+        // 7. Audit Log
+        auditLogService.log(
+                AuditLog.AuditAction.EMAIL_VERIFIED, // Reusing action or add EMAIL_RESENT
+                user,
+                "Resent verification code to " + normalizedEmail
+        );
+
+        return ResponseEntity.ok("A new verification code has been sent to your email.");
+    }
+
 
     public User findByEmailAddress(String email){
         return userRepository.findByEmail(email);

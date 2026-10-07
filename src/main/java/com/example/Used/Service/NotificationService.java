@@ -33,9 +33,9 @@ public class NotificationService {
                 }
             }
         };
-        emitter.onCompletion(cleanup);
-        emitter.onTimeout(cleanup);
-        emitter.onError(e -> cleanup.run());
+        emitter.onCompletion(() -> removeEmitter(userId, emitter));
+        emitter.onTimeout(() -> removeEmitter(userId, emitter));
+        emitter.onError((e) -> removeEmitter(userId, emitter));
 
         try {
             emitter.send(SseEmitter.event()
@@ -48,20 +48,31 @@ public class NotificationService {
         return emitter;
     }
 
+    private void removeEmitter(Long userId, SseEmitter emitter) {
+        List<SseEmitter> emitters = emittersByUser.get(userId);
+        if (emitters != null) {
+            emitters.remove(emitter);
+            if (emitters.isEmpty()) {
+                emittersByUser.remove(userId);
+            }
+        }
+    }
+
 
     public void sendToUser(Long userId, String eventName, Object data) {
-        List<SseEmitter> bucket = emittersByUser.get(userId);
-        if (bucket == null || bucket.isEmpty()) {
-            return; // they have no open stream; the audit row is still saved
-        }
-        bucket.removeIf(emitter -> {
-            try {
-                emitter.send(SseEmitter.event().name(eventName).data(data));
-                return false;
-            } catch (IOException e) {
-                return true; // dead -> drop
+        List<SseEmitter> emitters = emittersByUser.get(userId);
+        if (emitters != null && !emitters.isEmpty()) {
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event()
+                            .name(eventName)
+                            .data(data));
+                } catch (IOException e) {
+                    // Remove broken connections
+                    removeEmitter(userId, emitter);
+                }
             }
-        });
+        }
     }
 
     public void broadcast(String eventName, Object data) {

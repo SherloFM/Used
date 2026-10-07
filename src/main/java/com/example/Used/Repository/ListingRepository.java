@@ -2,6 +2,8 @@ package com.example.Used.Repository;
 
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -22,12 +24,12 @@ public interface ListingRepository extends JpaRepository<Listings,Long>, JpaSpec
             "WHERE c2.id IN :categoryIds " +
             "GROUP BY l2.id HAVING COUNT(c2.id) = :categoryCount" +
             "))")
-    List<Listings> searchListingsUnified(
+    Page<Listings> searchListingsPaginated(
             @Param("status") Listings.Status status,
             @Param("keyword") String keyword,
             @Param("hasCategories") boolean hasCategories,
             @Param("categoryIds") List<Long> categoryIds,
             @Param("categoryCount") long categoryCount,
-            Sort sort
+            Pageable pageable
     );
 }

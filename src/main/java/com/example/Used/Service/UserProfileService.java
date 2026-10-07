@@ -20,14 +20,17 @@ public class UserProfileService {
 
     private final CurrentUserService currentUserService;
     private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
 
     @Autowired
     public UserProfileService(
+            UserRepository userRepository,
             UserProfileRepository userProfileRepository,
             CurrentUserService currentUserService
     ) {
         this.userProfileRepository = userProfileRepository;
         this.currentUserService = currentUserService;
+        this.userRepository = userRepository;
     }
 
     public UserProfile getProfile(){
@@ -52,46 +55,35 @@ public class UserProfileService {
         return userProfileRepository.save(userProfileObject);
     }
 
-    public UserProfile uploadImage(MultipartFile img) throws IOException {
+    public UserProfile uploadProfileImage(MultipartFile imgFile) throws IOException {
+        // 1. Get current logged-in user
+        User currentUser = currentUserService.getCurrentUser();
 
-        if (img.isEmpty()) {
-            throw new IllegalArgumentException("Image is required");
+        // 2. Find their profile
+        UserProfile profile = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getUserProfile();
+
+        if (profile == null) {
+            throw new RuntimeException("Profile not initialized");
         }
 
-        if (img.getSize() > 5 * 1024 * 1024) {
-            throw new IllegalArgumentException("Image must be smaller than 5 MB");
+        // 3. Validate file size/type (Optional but recommended)
+        if (imgFile.getSize() > 5 * 1024 * 1024) { // 5MB limit
+            throw new IllegalArgumentException("Image too large. Max 5MB.");
+        }
+        String contentType = imgFile.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Invalid file type. Must be an image.");
         }
 
+        // 4. Convert to byte array and save
+        byte[] imageBytes = imgFile.getBytes();
+        profile.setImg(imageBytes);       // Assuming field name is 'img'
+        profile.setImgtype(contentType);  // Assuming field name is 'imgtype'
 
-        String contentType = img.getContentType();
-        if (!"image/jpeg".equals(contentType) &&
-                !"image/png".equals(contentType)) {
-            throw new IllegalArgumentException(
-                    "Only JPG, JPEG and PNG images are allowed"
-            );
-        }
+        userProfileRepository.save(profile);
 
-        // Check image dimensions
-        java.awt.image.BufferedImage image =
-                javax.imageio.ImageIO.read(img.getInputStream());
-
-        if (image == null) {
-            throw new IllegalArgumentException("Invalid image file");
-        }
-
-        if (image.getWidth() > 4000 || image.getHeight() > 4000) {
-            throw new IllegalArgumentException(
-                    "Image dimensions must not exceed 4000x4000 pixels"
-            );
-        }
-
-        User user = currentUserService.getCurrentUser();
-
-        UserProfile userProfileObject = user.getUserProfile();
-
-        userProfileObject.setImg(img.getBytes());
-        userProfileObject.setImgtype(contentType);
-
-        return userProfileRepository.save(userProfileObject);
+        return profile;
     }
 }

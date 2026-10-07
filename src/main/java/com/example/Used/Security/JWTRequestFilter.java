@@ -14,6 +14,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class JWTRequestFilter extends OncePerRequestFilter {
@@ -22,6 +24,27 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
     @Autowired
     private JWTUtilities jwtUtils;
+
+    private static final List<String> PUBLIC_PATHS = Arrays.asList(
+            "/",
+            "/login",
+            "/register",
+            "/verify",
+            "/forgot-password",
+            "/api/auth/", // Catch-all for auth endpoints if needed
+            "/css/",
+            "/js/",
+            "/images/",
+            "/favicon.ico",
+            "/error",
+            "/swagger-ui/",
+            "/v3/api-docs/"
+    );
+
+    private boolean isPublicPath(String uri) {
+        return PUBLIC_PATHS.stream().anyMatch(uri::startsWith);
+    }
+
 
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");

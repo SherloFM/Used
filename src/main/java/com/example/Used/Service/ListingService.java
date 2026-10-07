@@ -3,21 +3,28 @@ package com.example.Used.Service;
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Exceptions.ResourceNotFoundException;
 import com.example.Used.Model.AuditLog;
+import com.example.Used.Model.Categories;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Requests.ListingSearchRequests;
 import com.example.Used.Model.User;
+import com.example.Used.Repository.CategoryRepository;
 import com.example.Used.Repository.ListingRepository;
 import com.example.Used.Repository.ListingRepository;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class ListingService {
@@ -26,18 +33,21 @@ public class ListingService {
     private final ListingRepository listingsRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
+    public final CategoryRepository categoryRepository;
 
     @Autowired
     public ListingService(
             ListingRepository listingsRepository,
             CurrentUserService currentUserService,
             EmailServices emailServices,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            CategoryRepository categoryRepository
     ) {
         this.listingsRepository = listingsRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
         this.auditLogService = auditLogService;
+        this.categoryRepository = categoryRepository;
     }
 
     // CREATE LISTING
@@ -59,6 +69,21 @@ public class ListingService {
 
         listing.setStatus(Listings.Status.ACTIVE);
         listing.setUser(user);
+
+        if (listingRequest.getCategories() != null && !listingRequest.getCategories().isEmpty()) {
+            Set<Categories> categorySet = new HashSet<>();
+
+            for (Categories cat : listingRequest.getCategories()) {
+                // Fetch fresh from DB to ensure valid ID and avoid detached entity issues
+                Categories dbCat = categoryRepository.findById(cat.getId()).orElse(null);
+                if (dbCat != null) {
+                    categorySet.add(dbCat);
+                }
+            }
+            listing.setCategories(categorySet);
+        } else {
+            listing.setCategories(new HashSet<>());
+        }
 
         auditLogService.log(
                 AuditLog.AuditAction.LISTING_CREATED,
@@ -235,52 +260,52 @@ public class ListingService {
         return listing;
     }
 
-    public List<Listings> searchListings(
+    public Page<Listings> searchListings(
             String keyword,
             List<Long> categoryIds,
             String sortBy,
-            String sortDir
+            String sortDir,
+            int page,
+            int size
     ) {
-        // 1. Handle Keyword (Default to empty string to avoid SQL bytea null bug)
         String cleanKeyword = (keyword != null) ? keyword.trim() : "";
-
-        // 2. Handle Categories
         boolean hasCategories = (categoryIds != null && !categoryIds.isEmpty());
 
-        // If no categories are provided, pass an empty list so the query doesn't fail
         if (!hasCategories) {
             categoryIds = new ArrayList<>();
         }
 
-        // 3. Handle Sorting (Price, Condition, or Both)
+        // Determine Sort Direction
         String cleanSortDir = (sortDir != null && sortDir.equalsIgnoreCase("desc")) ? "desc" : "asc";
         Sort.Direction direction = cleanSortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
 
+        // Build Sort Object
         Sort sort;
-
         if (sortBy != null && !sortBy.trim().isEmpty()) {
-            // If user specifies a field, sort by it
             if (sortBy.equalsIgnoreCase("price")) {
                 sort = Sort.by(direction, "price").and(Sort.by(direction, "condition"));
             } else if (sortBy.equalsIgnoreCase("condition")) {
                 sort = Sort.by(direction, "condition").and(Sort.by(direction, "price"));
             } else {
-                // Fallback to price if they type something else
                 sort = Sort.by(direction, "price");
             }
         } else {
-            // Default sort if sortBy is missing
-            sort = Sort.by(Sort.Direction.ASC, "price");
+            // Default sort by newest first (createdAt desc) is usually better for marketplaces
+            sort = Sort.by(Sort.Direction.DESC, "createdAt");
         }
 
-        // 4. Execute the single unified query
-        return listingsRepository.searchListingsUnified(
+        // Create Pageable object
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Execute Query
+        return listingsRepository.searchListingsPaginated(
                 Listings.Status.ACTIVE,
                 cleanKeyword,
                 hasCategories,
                 categoryIds,
                 hasCategories ? categoryIds.size() : 0,
-                sort
+                pageable
         );
+
     }
 }

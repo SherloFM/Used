@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class AuditLogService {
 
@@ -46,5 +48,9 @@ public class AuditLogService {
         } else {
             notificationService.sendToUser(notifyUserId, action.name(), saved);
         }
+    }
+
+    public List<AuditLog> getUserActivity(Long userId) {
+        return auditRepository.findByActorIdOrderByCreatedAtDesc(userId);
     }
 }

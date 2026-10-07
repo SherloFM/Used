@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listing Details - Used Marketplace</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- DETAIL PAGE STYLES --- */
+        body { background: #f5f7fa; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+
+        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+
+        /* Breadcrumb / Back Link */
+        .back-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; color: #666; font-size: 0.95rem; }
+        .back-nav a { color: #a06cd5; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        .back-nav a:hover { text-decoration: underline; }
+
+        /* Main Grid Layout */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px; /* Image Left, Info Right */
+            gap: 2rem;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+
+        /* LEFT COLUMN: IMAGE & DESCRIPTION */
+        .left-col { padding: 2rem; }
+
+        .main-image-container {
+            width: 100%;
+            height: 400px;
+            background: #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .main-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-placeholder-icon { font-size: 4rem; color: #ccc; }
+
+        .description-section h3 { color: #2c3e50; margin-bottom: 1rem; font-size: 1.2rem; }
+        .description-text { color: #555; line-height: 1.6; white-space: pre-wrap; /* Preserves newlines from DB */ }
+
+        /* RIGHT COLUMN: INFO CARD */
+        .right-col {
+            background: #fafafa;
+            padding: 2rem;
+            border-left: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .price-tag { font-size: 2.5rem; font-weight: bold; color: #2ecc71; margin: 0; }
+        .item-title { font-size: 1.5rem; color: #2c3e50; margin: 0; line-height: 1.3; }
+
+        .meta-list { list-style: none; padding: 0; margin: 0; }
+        .meta-item { display: flex; justify-content: space-between; padding: 0.8rem 0; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .meta-label { color: #888; font-weight: 600; }
+        .meta-value { color: #333; font-weight: 500; }
+
+        /* Seller Card */
+        .seller-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .seller-avatar {
+            width: 50px; height: 50px; border-radius: 50%; background: #ddd;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: bold; font-size: 1.2rem;
+        }
+        .seller-info h4 { margin: 0; color: #2c3e50; font-size: 1rem; }
+        .seller-info p { margin: 0; color: #888; font-size: 0.85rem; }
+
+        /* Action Buttons */
+        .btn-buy {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #6ec3f4, #a06cd5);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            margin-top: auto; /* Push to bottom of card */
+        }
+        .btn-buy:hover:not(:disabled) { opacity: 0.9; transform: translateY(-2px); }
+        .btn-buy:disabled { opacity: 0.6; cursor: not-allowed; background: #ccc; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-active { background: #eafaf1; color: #27ae60; }
+        .status-sold { background: #fdecea; color: #c0392b; }
+
+        /* Loading/Error States */
+        #loadingState, #errorState { text-align: center; padding: 4rem; color: #888; }
+        .spinner { font-size: 3rem; color: #a06cd5; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- BACK NAVIGATION -->
+    <div class="back-nav">
+        <a href="/"><i class="fas fa-arrow-left"></i> Back to Search</a>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div id="loadingState">
+        <i class="fas fa-circle-notch spinner"></i>
+        <p>Loading listing details...</p>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="errorState" style="display:none;">
+        <i class="fas fa-exclamation-triangle" style="font-size:3rem; color:#e74c3c;"></i>
+        <h2>Listing Not Found</h2>
+        <p>This item may have been removed or sold.</p>
+        <a href="/" class="btn-primary" style="margin-top:1rem; display:inline-block;">Return Home</a>
+    </div>
+
+    <!-- MAIN CONTENT (Hidden initially) -->
+    <div id="detailContent" class="detail-grid" style="display:none;">
+
+        <!-- LEFT: IMAGE & DESC -->
+        <div class="left-col">
+            <div class="main-image-container" id="imageContainer">
+                <!-- Image injected here by JS -->
+                <i class="fas fa-image image-placeholder-icon"></i>
+            </div>
+
+            <div class="description-section">
+                <h3>Description</h3>
+                <div class="description-text" id="descText">Loading description...</div>
+            </div>
+        </div>
+
+        <!-- RIGHT: INFO & ACTIONS -->
+        <div class="right-col">
+            <div>
+                <span id="statusBadge" class="status-badge status-active">Active</span>
+                <h1 class="item-title" id="itemTitle">Item Title</h1>
+                <div class="price-tag" id="itemPrice">$0.00</div>
+            </div>
+
+            <ul class="meta-list">
+                <li class="meta-item">
+                    <span class="meta-label">Condition</span>
+                    <span class="meta-value" id="itemCondition">--</span>
+                </li>
+                <li class="meta-item">
+                    <span class="meta-label">Location</span>
+                    <span class="meta-value" id="itemLocation">--</span>
+                </li>
+                <li class="meta-item">
+                    <span class="meta-label">Posted On</span>
+                    <span class="meta-value" id="itemDate">--</span>
+                </li>
+            </ul>
+
+            <div class="seller-card">
+                <div class="seller-avatar" id="sellerAvatar">?</div>
+                <div class="seller-info">
+                    <h4 id="sellerName">Seller Name</h4>
+                    <p>Verified Member</p>
+                </div>
+            </div>
+
+            <button id="buyBtn" class="btn-buy" onclick="handlePurchase()">
+                <i class="fas fa-shopping-cart"></i> Buy Now
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const TOKEN_KEY = 'used_jwt_token';
+    let currentListingId = null;
+    let listingData = null;
+
+    // Extract ID from URL: /listing/123 -> 123
+    const pathParts = window.location.pathname.split('/');
+    const idFromUrl = pathParts[pathParts.length - 1];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!idFromUrl || isNaN(idFromUrl)) {
+            showError("Invalid Listing ID");
+            return;
+        }
+        currentListingId = parseInt(idFromUrl);
+        fetchListingDetails();
+    });
+
+    async function fetchListingDetails() {
+        try {
+            // Call your existing API: GET /api/listings/{id}
+            // Note: This endpoint might need to be permitAll for guests to VIEW details,
+            // but protected for BUYING. Check your SecurityConfig.
+            const res = await fetch(`/api/listings/${currentListingId}`);
+
+            if (!res.ok) {
+                if (res.status === 404) throw new Error("Not Found");
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            listingData = await res.json();
+            renderListing(listingData);
+
+        } catch (err) {
+            console.error(err);
+            showError(err.message === "Not Found" ? "Listing does not exist." : "Failed to load listing.");
+        } finally {
+            document.getElementById('loadingState').style.display = 'none';
+        }
+    }
+
+    function renderListing(data) {
+        const contentEl = document.getElementById('detailContent');
+
+        // 1. Basic Text Fields
+        document.getElementById('itemTitle').textContent = data.title;
+        document.getElementById('itemPrice').textContent = `$${parseFloat(data.price).toFixed(2)}`;
+        document.getElementById('itemCondition').textContent = data.condition || 'N/A';
+        document.getElementById('itemLocation').textContent = data.location || 'N/A';
+        document.getElementById('descText').textContent = data.description || 'No description provided.';
+
+        // Format Date
+        if (data.createdAt) {
+            const date = new Date(data.createdAt);
+            document.getElementById('itemDate').textContent = date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        } else {
+            document.getElementById('itemDate').textContent = 'Recently';
+        }
+
+        // Status Badge
+        const badge = document.getElementById('statusBadge');
+        if (data.status === 'SOLD') {
+            badge.textContent = 'Sold';
+            badge.className = 'status-badge status-sold';
+            document.getElementById('buyBtn').disabled = true;
+            document.getElementById('buyBtn').innerHTML = '<i class="fas fa-ban"></i> Sold Out';
+        } else {
+            badge.textContent = 'Available';
+            badge.className = 'status-badge status-active';
+        }
+
+        // 2. Image Handling (Base64)
+        const imgContainer = document.getElementById('imageContainer');
+        if (data.img && typeof data.img === 'string' && data.img.length > 0) {
+            const mimeType = data.imgtype || 'image/jpeg';
+            imgContainer.innerHTML = `<img src="data:${mimeType};base64,${data.img}" alt="${data.title}">`;
+        } else {
+            // Keep placeholder icon if no image
+            imgContainer.innerHTML = '<i class="fas fa-image image-placeholder-icon"></i>';
+        }
+
+        // 3. Seller Info
+        // Assuming your Listings DTO returns nested user info or just userId.
+        // If it returns full User object:
+        if (data.user) {
+            document.getElementById('sellerName').textContent = data.user.username || data.user.email;
+            // Generate initials for avatar
+            const name = data.user.username || "?";
+            const initials = name.substring(0, 2).toUpperCase();
+            document.getElementById('sellerAvatar').textContent = initials;
+        } else {
+            // Fallback if only ID is returned
+            document.getElementById('sellerName').textContent = "Member #" + (data.userId || '?');
+            document.getElementById('sellerAvatar').textContent = "?";
+        }
+
+        // Show Content
+        contentEl.style.display = 'grid';
+    }
+
+    function showError(msg) {
+        document.getElementById('loadingState').style.display = 'none';
+        const errEl = document.getElementById('errorState');
+        errEl.style.display = 'block';
+        errEl.querySelector('p').textContent = msg;
+    }
+
+    // ==========================================
+    // PURCHASE LOGIC
+    // ==========================================
+    async function handlePurchase() {
+        // 1. Auth Check
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) {
+            alert("Please log in to purchase items.");
+            window.location.href = '/login';
+            return;
+        }
+
+        // 2. Confirmation
+        if (!confirm(`Are you sure you want to buy "${listingData.title}" for $${listingData.price}?`)) {
+            return;
+        }
+
+        const btn = document.getElementById('buyBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+        try {
+            // 3. Call API: POST /api/listings/{id}/buy
+            const res = await fetch(`/api/listings/${currentListingId}/buy`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (res.ok) {
+                // Success
+                alert("Purchase successful! The item has been marked as SOLD.");
+                // Reload page to update status to SOLD immediately
+                window.location.reload();
+            } else {
+                // Handle specific errors from backend (e.g., "Already sold", "Insufficient funds")
+                const errText = await res.text();
+                throw new Error(errText || "Purchase failed.");
+            }
+
+        } catch (err) {
+            console.error(err);
+            alert("Error: " + err.message);
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+</script>
+
+</body>
+</html>

@@ -7,6 +7,7 @@ import com.example.Used.Service.ListingService;
 import com.example.Used.Service.TransactionServices;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -100,12 +101,14 @@ public class ListingsController {
 
     // SEARCH, FILTER, AND SORT
     @GetMapping("/search")
-    public List<Listings> searchListings(
+    public Page<Listings> searchListings(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) List<Long> categoryIds,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false, defaultValue = "asc") String sortDir
+            @RequestParam(required = false, defaultValue = "asc") String sortDir,
+            @RequestParam(defaultValue = "0") int page,   // Default to page 0
+            @RequestParam(defaultValue = "12") int size   // Default 12 items per page
     ) {
-        return listingsService.searchListings(keyword, categoryIds, sortBy, sortDir);
+        return listingsService.searchListings(keyword, categoryIds, sortBy, sortDir, page, size);
     }
 }

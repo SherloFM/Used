@@ -16,6 +16,12 @@
             padding: 2rem;
         }
 
+        .disabled-link {
+    color: #ccc !important;
+    cursor: not-allowed !important;
+    text-decoration: none !important;
+}
+
         .auth-card {
             background: white;
             border-radius: 16px;
@@ -155,113 +161,137 @@
 </div>
 
 <script>
-    // --- 1. AUTO-FILL EMAIL LOGIC ---
-    const params = new URLSearchParams(window.location.search);
-    let email = params.get('email');
+    // --- CONFIGURATION ---
+    const COOLDOWN_SECONDS = 60; // Must match backend
 
-    // Fallback: If no URL param, check sessionStorage (set by Register form)
-    if (!email) {
-        email = sessionStorage.getItem('pendingVerifyEmail');
-    }
+    // --- STATE VARIABLES ---
+    let timerInterval = null;
+    let remainingTime = COOLDOWN_SECONDS;
+    let isInitialLoad = true;
+
+    // --- DOM ELEMENTS ---
+    const params = new URLSearchParams(window.location.search);
+    let email = params.get('email') || sessionStorage.getItem('pendingVerifyEmail');
 
     const emailLabel = document.getElementById('emailLabel');
     const codeInput = document.getElementById('codeInput');
     const verifyBtn = document.getElementById('verifyBtn');
     const msgBox = document.getElementById('statusMsg');
+    const resendLink = document.getElementById('resendLink');
+    const timerDisplay = document.getElementById('timerDisplay'); // We will add this element below
 
-    if (email) {
-        emailLabel.textContent = email;
-        // Focus the input immediately for better UX
-        setTimeout(() => codeInput.focus(), 100);
-    } else {
-        emailLabel.textContent = "Unknown Account";
-        emailLabel.style.color = "#e74c3c";
-        msgBox.textContent = "Session expired. Please register again.";
-        msgBox.className = "msg-box msg-error";
-        verifyBtn.disabled = true;
+    // --- INITIALIZATION ---
+    function init() {
+        if (email) {
+            emailLabel.textContent = email;
+            setTimeout(() => codeInput.focus(), 100);
+
+            // Start Timer immediately on load
+            startCooldownTimer();
+        } else {
+            emailLabel.textContent = "Unknown Account";
+            emailLabel.style.color = "#e74c3c";
+            showMessage("Session expired. Please register again.", "error");
+            verifyBtn.disabled = true;
+            resendLink.style.display = 'none';
+        }
     }
 
-    // --- 2. INPUT RESTRICTION (Digits Only) ---
-    codeInput.addEventListener('input', (e) => {
-        // Remove anything that isn't a digit
-        e.target.value = e.target.value.replace(/\D/g, '');
+    // --- TIMER LOGIC ---
+    function startCooldownTimer() {
+        clearInterval(timerInterval);
+        remainingTime = COOLDOWN_SECONDS;
 
-        // Optional: Auto-submit when 6 digits entered?
-        // Uncomment below if you want instant verification on full code entry
-        /*
-        if(e.target.value.length === 6) {
-            handleVerify();
+        // Disable link visually
+        resendLink.classList.add('disabled-link');
+        resendLink.textContent = `Resend available in ${remainingTime}s`;
+
+        timerInterval = setInterval(() => {
+            remainingTime--;
+            resendLink.textContent = `Resend available in ${remainingTime}s`;
+
+            if (remainingTime <= 0) {
+                clearInterval(timerInterval);
+                enableResendButton();
+            }
+        }, 1000);
+    }
+
+    function enableResendButton() {
+        resendLink.classList.remove('disabled-link');
+        resendLink.textContent = "Didn't receive the code? Resend";
+        resendLink.onclick = handleResend;
+    }
+
+    // --- RESEND API CALL ---
+    async function handleResend(e) {
+        e.preventDefault();
+
+        // Prevent double clicks while processing
+        resendLink.onclick = null;
+        resendLink.textContent = "Sending...";
+
+        try {
+            const res = await fetch('/auth/user/resend-verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            });
+
+            if (res.ok) {
+                showMessage("New code sent! Check your inbox.", "success");
+                // Restart timer after successful send
+                startCooldownTimer();
+            } else if (res.status === 429) {
+                // Backend rate limit hit (shouldn't happen if UI timer works, but good fallback)
+                const text = await res.text();
+                showMessage(text, "error");
+                startCooldownTimer(); // Reset UI timer based on backend feedback
+            } else {
+                const text = await res.text();
+                showMessage(text || "Failed to send code.", "error");
+                enableResendButton(); // Allow retry on network/server error
+            }
+        } catch (err) {
+            showMessage("Network error. Try again.", "error");
+            enableResendButton();
         }
-        */
-    });
+    }
 
-    // --- 3. VERIFICATION API CALL ---
+    // --- VERIFY API CALL (Existing Logic, slightly tweaked) ---
     async function handleVerify() {
         if (!email) return;
-
         const code = codeInput.value.trim();
 
-        // Basic Validation
         if (code.length !== 6) {
             showMessage("Please enter the full 6-digit code.", "error");
             return;
         }
 
-        // UI Loading State
         setLoading(true);
 
         try {
             const res = await fetch('/auth/user/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: email,
-                    code: code
-                })
+                body: JSON.stringify({ email: email, code: code })
             });
 
             if (res.ok) {
                 showMessage("Email verified successfully! Redirecting...", "success");
-
-                // Clear session storage so refresh doesn't re-use old data
                 sessionStorage.removeItem('pendingVerifyEmail');
-
-                // Short delay to show success message, then go to Dashboard
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1500);
+                setTimeout(() => window.location.href = '/', 1500);
             } else {
-                // Handle Backend Errors (Expired code, wrong code, etc.)
                 const errorText = await res.text();
-                // Your backend returns plain strings like "Invalid verification code"
-                showMessage(errorText || "Verification failed. Check your code.", "error");
+                showMessage(errorText || "Invalid or expired code.", "error");
                 setLoading(false);
-
-                // Select text for easy retry
                 codeInput.select();
             }
         } catch (err) {
-            console.error(err);
-            showMessage("Network error. Could not reach server.", "error");
+            showMessage("Network error.", "error");
             setLoading(false);
         }
     }
-
-    // Button Click Handler
-    verifyBtn.addEventListener('click', handleVerify);
-
-    // Enter Key Handler
-    codeInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            handleVerify();
-        }
-    });
-
-    // Resend Link (Placeholder logic)
-    document.getElementById('resendLink').addEventListener('click', (e) => {
-        e.preventDefault();
-        showMessage("Codes expire in 10 minutes. Check spam folder, or wait 1 minute and try registering again.", "error");
-    });
 
     // --- HELPERS ---
     function showMessage(text, type) {
@@ -278,6 +308,14 @@
             verifyBtn.textContent = 'Verify Email';
         }
     }
+
+    // --- EVENT LISTENERS ---
+    verifyBtn.addEventListener('click', handleVerify);
+    codeInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') handleVerify(); });
+    codeInput.addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); });
+
+    // Run Init
+    init();
 
 </script>
 

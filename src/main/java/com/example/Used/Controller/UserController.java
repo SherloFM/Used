@@ -12,6 +12,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @AllArgsConstructor
 @RestController
 @RequestMapping(path = "/auth/user")
@@ -59,6 +61,17 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequests request
     ) {
         return userService.changePassword(request);
+    }
+
+    @PostMapping("/resend-verify")
+    public ResponseEntity<?> resendVerification(
+            @RequestBody Map<String, String> request // Simple map: {"email": "..."}
+    ) {
+        String email = request.get("email");
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email is required");
+        }
+        return userService.resendVerificationCode(email);
     }
 
 }
