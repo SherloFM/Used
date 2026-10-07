@@ -122,6 +122,12 @@ public class ListingService {
 
         listingsRepository.save(listing);
 
+        auditLogService.log(
+                AuditLog.AuditAction.LISTING_UPDATED,
+                user,
+                "Updated listing '" + listing.getTitle() + "' (id=" + listing.getId() + ")"
+        );
+
         return listing;
     }
 
