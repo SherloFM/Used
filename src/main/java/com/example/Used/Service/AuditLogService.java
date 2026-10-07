@@ -14,10 +14,13 @@ public class AuditLogService {
     private static final Logger logger = LoggerFactory.getLogger(AuditLogService.class);
 
     private final AuditRepository auditRepository;
+    private final NotificationService notificationService;
+
 
     @Autowired
-    public AuditLogService(AuditRepository auditRepository) {
+    public AuditLogService(AuditRepository auditRepository, NotificationService notificationService) {
         this.auditRepository = auditRepository;
+        this.notificationService = notificationService;
     }
 
     public void log(AuditLog.AuditAction action, User actor, String details) {
