@@ -256,6 +256,12 @@ public class UserService {
 
         userRepository.save(user);
 
+        auditLogService.log(
+                AuditLog.AuditAction.PASSWORD_RESET,
+                user,
+                "Password reset for " + user.getEmail()
+        );
+
         return ResponseEntity.ok(
                 "Password reset successfully"
         );
