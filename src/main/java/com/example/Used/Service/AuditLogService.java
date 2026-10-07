@@ -18,19 +18,33 @@ public class AuditLogService {
 
 
     @Autowired
-    public AuditLogService(AuditRepository auditRepository, NotificationService notificationService) {
+    public AuditLogService(
+            AuditRepository auditRepository,
+            NotificationService notificationService
+    ) {
         this.auditRepository = auditRepository;
         this.notificationService = notificationService;
     }
 
     public void log(AuditLog.AuditAction action, User actor, String details) {
+        log(action, actor, details, null);
+    }
 
-        // 1) Console log (uses {} placeholders, not string concat -> fast + clean)
+    public void log(AuditLog.AuditAction action, User actor, String details, Long notifyUserId) {
+
+        // 1) Console
         String actorName = (actor != null) ? actor.getUsername() : "SYSTEM";
         logger.info("[AUDIT] {} | actor={} | {}", action, actorName, details);
 
-        // 2) Persist to database
+        // 2) Persist
         AuditLog entry = new AuditLog(action, actor, details);
-        auditRepository.save(entry);
+        AuditLog saved = auditRepository.save(entry);
+
+        // 3) Live notification, routed per the matrix
+        if (notifyUserId == null) {
+            notificationService.broadcast(action.name(), saved);
+        } else {
+            notificationService.sendToUser(notifyUserId, action.name(), saved);
+        }
     }
 }
