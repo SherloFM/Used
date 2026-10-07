@@ -86,12 +86,19 @@ public class UserService {
 
             User savedUser = userRepository.save(userObject);
 
+            auditLogService.log(
+                    AuditLog.AuditAction.USER_REGISTERED,
+                    savedUser,
+                    "Registered new user " + savedUser.getEmail()
+            );
+
+
             emailServices.sendVerificationEmail(
                     savedUser.getEmail(),
                     emailVerificationCode
             );
 
-            
+
 
             return savedUser;
         }else{
