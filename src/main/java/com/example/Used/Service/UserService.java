@@ -91,6 +91,8 @@ public class UserService {
                     emailVerificationCode
             );
 
+            
+
             return savedUser;
         }else{
             throw new InformationExistException("already exists");

@@ -16,12 +16,15 @@ import java.time.LocalDateTime;
 public class AuditLog {
 
     public enum AuditAction {
-        LISTING_CREATED,
-        LISTING_SOLD,
-        LISTING_DELISTED,
-        USER_BANNED,
+        USER_REGISTERED,
         EMAIL_VERIFIED,
-        PASSWORD_RESET
+        PASSWORD_RESET,
+        PASSWORD_CHANGED,
+        USER_BANNED,        // kept for the future ban endpoint
+        LISTING_CREATED,
+        LISTING_UPDATED,
+        LISTING_DELISTED,   // used by BOTH owner-cancel and admin-remove
+        LISTING_SOLD
     }
 
     @Id
@@ -53,5 +56,7 @@ public class AuditLog {
             this.actorUsername = actor.getUsername();
         }
     }
+
+
 
 }
