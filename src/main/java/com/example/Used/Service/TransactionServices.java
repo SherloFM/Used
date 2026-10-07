@@ -85,7 +85,8 @@ public class TransactionServices {
                 buyer,
                 "Listing '" + listing.getTitle() + "' (id=" + listingId + ") sold for "
                         + listing.getPrice() + " to user id=" + buyer.getId()
-                        + " from seller id=" + seller.getId()
+                        + " from seller id=" + seller.getId(),
+                seller.getId()
         );
 
         // Notify seller

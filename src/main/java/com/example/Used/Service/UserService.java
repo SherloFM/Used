@@ -187,7 +187,8 @@ public class UserService {
         auditLogService.log(
                 AuditLog.AuditAction.EMAIL_VERIFIED,
                 user,
-                "Email verified for " + user.getEmail()
+                "Email verified for " + user.getEmail(),
+                user.getId()
         );
 
         return ResponseEntity.ok("Email verified successfully");
@@ -259,7 +260,8 @@ public class UserService {
         auditLogService.log(
                 AuditLog.AuditAction.PASSWORD_RESET,
                 user,
-                "Password reset for " + user.getEmail()
+                "Password reset for " + user.getEmail(),
+                user.getId()
         );
 
         return ResponseEntity.ok(
@@ -301,7 +303,8 @@ public class UserService {
         auditLogService.log(
                 AuditLog.AuditAction.PASSWORD_CHANGED,
                 user,
-                "Password changed for " + user.getEmail()
+                "Password changed for " + user.getEmail(),
+                user.getId()
         );
 
 

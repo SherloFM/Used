@@ -46,7 +46,9 @@ public class AdminService {
         user.setBanned(true);
         auditLogService.log(
                 AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
-                "Banned user id=" + user.getId() + " (" + user.getEmail() + ")");
+                "Banned user id=" + user.getId() + " (" + user.getEmail() + ")",
+                user.getId()
+        );
 
         emailServices.sendAccountBannedEmail(userEmail);
 
@@ -60,7 +62,9 @@ public class AdminService {
         user.setBanned(false);
         auditLogService.log(
                 AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
-                "Unbanned user id=" + user.getId() + " (" + user.getEmail() + ")");
+                "Unbanned user id=" + user.getId() + " (" + user.getEmail() + ")",
+                user.getId()
+                );
 
         emailServices.sendAccountUnbannedEmail(userEmail); // then notify
 
@@ -70,12 +74,15 @@ public class AdminService {
     public void deleteUser(Long id) {
         User user = getUserById(id);
         String userEmail = user.getEmail();
+        Long victimId = user.getId();          // capture before the row is gone
 
         userRepository.delete(user);
         auditLogService.log(
-                AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
-                "Deleted user id=" + user.getId() + " (" + user.getEmail() + ")");
-
+                AuditLog.AuditAction.USER_BANNED,
+                currentUserService.getCurrentUser(),
+                "Deleted user id=" + victimId + " (" + userEmail + ")",
+                victimId                       // targeted: the VICTIM
+        );
         emailServices.sendAccountDeletedEmail(userEmail);
 
     }

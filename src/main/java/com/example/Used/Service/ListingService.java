@@ -207,7 +207,8 @@ public class ListingService {
         auditLogService.log(
                 AuditLog.AuditAction.LISTING_DELISTED,
                 admin,
-                "Admin removed listing '" + listingTitle + "' (id=" + id + ")"
+                "Admin removed listing '" + listingTitle + "' (id=" + id + ")",
+                listing.getUser().getId()
         );
     }
 
