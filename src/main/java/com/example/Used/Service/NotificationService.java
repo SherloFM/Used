@@ -47,4 +47,19 @@ public class NotificationService {
     }
 
 
+    public void sendToUser(Long userId, String eventName, Object data) {
+        List<SseEmitter> bucket = emittersByUser.get(userId);
+        if (bucket == null || bucket.isEmpty()) {
+            return; // they have no open stream; the audit row is still saved
+        }
+        bucket.removeIf(emitter -> {
+            try {
+                emitter.send(SseEmitter.event().name(eventName).data(data));
+                return false;
+            } catch (IOException e) {
+                return true; // dead -> drop
+            }
+        });
+    }
+
 }
