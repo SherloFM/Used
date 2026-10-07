@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Register - Used Marketplace</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* --- AUTH PAGE STYLES --- */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #6ec3f4 0%, #a06cd5 100%);
+            padding: 2rem;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 450px;
+            overflow: hidden;
+        }
+
+        /* Tabs Header */
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid #eee;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1.2rem;
+            text-align: center;
+            font-weight: 600;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            border: none;
+            outline: none;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            color: #a06cd5;
+            background: #fdfaff;
+        }
+
+        /* Active Tab Indicator Line */
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #a06cd5;
+        }
+
+        /* Form Body */
+        .form-body {
+            padding: 2rem;
+        }
+
+        .form-section {
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.4s ease;
+        }
+
+        .form-section.active {
+            display: block; /* Shown when active */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inputs & Labels */
+        .input-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #a06cd5;
+            box-shadow: 0 0 0 3px rgba(160, 108, 213, 0.1);
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #6ec3f4, #a06cd5);
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .submit-btn:hover { opacity: 0.95; }
+        .submit-btn:active { transform: scale(0.98); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Messages */
+        .msg-box {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .msg-error { background: #fdecea; color: #c0392b; border: 1px solid #f5c6cb; display: block; }
+        .msg-success { background: #eafaf1; color: #27ae60; border: 1px solid #c3e6cb; display: block; }
+
+        /* Links */
+        .forgot-link {
+            display: block;
+            text-align: right;
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: -0.5rem;
+            margin-bottom: 1rem;
+            text-decoration: none;
+        }
+        .forgot-link:hover { color: #a06cd5; }
+
+    </style>
+</head>
+<body class="auth-container">
+
+<div class="auth-card">
+
+    <!-- TABS HEADER -->
+    <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <div class="form-body">
+
+        <!-- ================= LOGIN FORM ================= -->
+        <div id="loginFormSection" class="form-section active">
+            <h2 style="margin-bottom:1.5rem; color:#2c3e50;">Welcome Back</h2>
+
+            <div id="loginMsg" class="msg-box"></div>
+
+            <form id="loginApiForm">
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="loginEmail" placeholder="you@example.com" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+
+                <a href="#" class="forgot-link">Forgot Password?</a>
+
+                <button type="submit" class="submit-btn" id="loginBtn">Log In</button>
+            </form>
+        </div>
+
+        <!-- ================= REGISTER FORM ================= -->
+        <div id="registerFormSection" class="form-section">
+            <h2 style="margin-bottom:1.5rem; color:#2c3e50;">Create Account</h2>
+
+            <div id="registerMsg" class="msg-box"></div>
+
+            <form id="registerApiForm">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="Choose a username" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="regEmail" placeholder="you@example.com" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="regPassword" placeholder="Min 6 characters" required minlength="6">
+                </div>
+
+                <button type="submit" class="submit-btn" id="regBtn">Sign Up</button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- TAB SWITCHING LOGIC ---
+    function switchTab(tabName) {
+        const loginSec = document.getElementById('loginFormSection');
+        const regSec = document.getElementById('registerFormSection');
+        const tabs = document.querySelectorAll('.tab-btn');
+
+        // Reset styles
+        tabs.forEach(t => t.classList.remove('active'));
+        loginSec.classList.remove('active');
+        regSec.classList.remove('active');
+
+        // Activate selected
+        if (tabName === 'login') {
+            tabs[0].classList.add('active');
+            loginSec.classList.add('active');
+        } else {
+            tabs[1].classList.add('active');
+            regSec.classList.add('active');
+        }
+    }
+
+    // --- HELPERS ---
+    function showMessage(elementId, text, type) {
+        const el = document.getElementById(elementId);
+        el.textContent = text;
+        el.className = 'msg-box msg-' + type; // adds error or success class
+        el.style.display = 'block';
+    }
+
+    function hideMessage(elementId) {
+        document.getElementById(elementId).style.display = 'none';
+    }
+
+    // --- LOGIN API CALL ---
+    document.getElementById('loginApiForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideMessage('loginMsg');
+
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.textContent = 'Logging in...';
+
+        const payload = {
+            email: document.getElementById('loginEmail').value.trim(),
+            password: document.getElementById('loginPassword').value
+        };
+
+        try {
+            const res = await fetch('/auth/user/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Your backend returns { "message": "<JWT_TOKEN>" }
+                const token = data.message;
+
+                if (token) {
+                    localStorage.setItem('used_jwt_token', token);
+                    showMessage('loginMsg', 'Success! Redirecting...', 'success');
+                    setTimeout(() => window.location.href = '/', 1000);
+                } else {
+                    throw new Error("Token missing in response");
+                }
+            } else {
+                // Handle specific errors like "Account banned" or "Invalid credentials"
+                const errData = await res.json().catch(() => ({ message: "Login failed" }));
+                showMessage('loginMsg', errData.message || "Invalid email or password", 'error');
+            }
+        } catch (err) {
+            showMessage('loginMsg', 'Network error. Please try again.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Log In';
+        }
+    });
+
+    // --- REGISTER API CALL ---
+    document.getElementById('registerApiForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideMessage('registerMsg');
+
+        const btn = document.getElementById('regBtn');
+        btn.disabled = true;
+        btn.textContent = 'Creating account...';
+
+        const payload = {
+            username: document.getElementById('regUsername').value.trim(),
+            email: document.getElementById('regEmail').value.trim().toLowerCase(),
+            password: document.getElementById('regPassword').value
+        };
+
+        try {
+            const res = await fetch('/auth/user/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showMessage('registerMsg', 'Account created! Verifying email...', 'success');
+
+                // Save email for verify page context
+                sessionStorage.setItem('pendingVerifyEmail', payload.email);
+
+                setTimeout(() => {
+                    window.location.href = '/verify?email=' + encodeURIComponent(payload.email);
+                }, 1500);
+            } else {
+                const errText = await res.text();
+                showMessage('registerMsg', errText || "Registration failed", 'error');
+            }
+        } catch (err) {
+            showMessage('registerMsg', 'Network error.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Sign Up';
+        }
+    });
+
+</script>
+
+</body>
+</html>

@@ -55,6 +55,17 @@ public class SecurityConfiguration {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
+                        .requestMatchers(
+                                "/",                  // Dashboard (visual shell only)
+                                "/register",          // Register Page
+                                "/verify",            // Verify Page
+                                "/login",             // Login Page
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/favicon.ico",
+                                "/error"
+                        ).permitAll()
                         .anyRequest().authenticated());
 
         http.addFilterBefore(

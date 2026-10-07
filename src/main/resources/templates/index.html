@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Used Marketplace</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Lock Overlay Style */
+        .lock-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .lock-box {
+            background: white; padding: 3rem; border-radius: 16px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); max-width: 400px;
+        }
+        .lock-icon { font-size: 4rem; color: #e74c3c; margin-bottom: 1rem; }
+        .btn-login {
+            display: inline-block; margin-top: 1.5rem; padding: 12px 30px;
+            background: #a06cd5; color: white; border-radius: 8px; font-weight: bold;
+            text-decoration: none; transition: transform 0.2s;
+        }
+        .btn-login:hover { transform: scale(1.05); }
+
+        /* Disabled State Styles */
+        .disabled-action { opacity: 0.6; cursor: not-allowed !important; pointer-events: auto; }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="logo"><i class="fas fa-recycle"></i> USED</div>
+
+    <!-- Search Bar (Visual Only until Authenticated) -->
+    <div class="search-container disabled-action" onclick="handleLockedInteraction()">
+        <select id="categorySelect" class="search-select" disabled>
+            <option>All Categories</option>
+        </select>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search items..." readonly>
+        <button class="search-btn" tabindex="-1"><i class="fas fa-search"></i></button>
+    </div>
+
+    <div class="nav-icons">
+        <a href="#" class="disabled-action" onclick="handleLockedInteraction(event)" title="Wishlist"><i class="far fa-heart"></i></a>
+        <a href="#" class="disabled-action" onclick="handleLockedInteraction(event)" title="Cart"><i class="fas fa-shopping-cart"></i></a>
+        <a th:href="@{/login}" title="Login"><i class="fas fa-user-circle"></i></a>
+    </div>
+</nav>
+
+<!-- HERO SECTION -->
+<section class="hero">
+    <div class="hero-text">
+        <h1>Find Quality <span>Second-Hand</span><br>Treasures Today</h1>
+        <p>Buy and sell electronics, furniture, vehicles, and more safely.</p>
+        <div class="cta-buttons">
+            <!-- Both buttons trigger login check -->
+            <a href="#" class="btn-primary disabled-action" onclick="handleLockedInteraction(event)">BROWSE ITEMS</a>
+            <a href="#" class="btn-outline disabled-action" onclick="handleLockedInteraction(event)">SELL NOW</a>
+        </div>
+        <div class="stats-row">
+            <div class="stat-item"><h3>--</h3><p>Active Items</p></div>
+            <div class="stat-item"><h3>--</h3><p>Trusted Sellers</p></div>
+        </div>
+    </div>
+    <div class="hero-image">
+        <div class="hero-image-placeholder"><i class="fas fa-camera-retro" style="font-size:4rem;"></i></div>
+    </div>
+</section>
+
+<!-- FEATURES STRIP (Static Info - Safe for Guests) -->
+<div class="features-strip">
+    <div class="feature-card fc-green"><div class="feature-icon"><i class="fas fa-shield-alt"></i></div><div class="feature-text"><h4>Secure Payments</h4><p>Held until delivery.</p></div></div>
+    <div class="feature-card fc-dark"><div class="feature-icon"><i class="fas fa-check-circle"></i></div><div class="feature-text"><h4>Verified Users</h4><p>Email confirmed accounts.</p></div></div>
+    <div class="feature-card fc-orange"><div class="feature-icon"><i class="fas fa-map-marker-alt"></i></div><div class="feature-text"><h4>Local Pickup</h4><p>Meet nearby sellers.</p></div></div>
+</div>
+
+<!-- LISTINGS GRID (Empty Placeholder for Guests) -->
+<section id="listings-section" class="categories-section">
+    <div class="section-header">
+        <h2 class="section-title">Latest Listings</h2>
+    </div>
+    <div id="listingsGrid" class="category-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:2rem;">
+        <!-- Guest View: Show a locked message instead of items -->
+        <div style="grid-column: 1/-1; text-align:center; padding: 4rem; background:#f9f9f9; border-radius:12px; border:2px dashed #ddd;">
+            <i class="fas fa-lock" style="font-size:3rem; color:#bbb; margin-bottom:1rem;"></i>
+            <h3>Browse Exclusive Deals</h3>
+            <p style="color:#888; margin-bottom:1.5rem;">Log in to view thousands of active listings from verified sellers.</p>
+            <a th:href="@{/login}" class="btn-primary">LOG IN TO BROWSE</a>
+        </div>
+    </div>
+</section>
+
+<!-- LOCK MODAL (Appears when guest clicks anything) -->
+<div id="lockModal" class="lock-overlay">
+    <div class="lock-box">
+        <div class="lock-icon"><i class="fas fa-user-shield"></i></div>
+        <h2>Members Only</h2>
+        <p style="color:#666; margin-top:1rem;">Please log in or register to access marketplace features, search listings, and make purchases.</p>
+        <a th:href="@{/login}" class="btn-login">Go to Login</a>
+        <br>
+        <small style="color:#999; display:block; margin-top:1rem;">Don't have an account? <a th:href="@{/register}" style="color:#a06cd5;">Register here</a></small>
+    </div>
+</div>
+
+<script>
+    // --- CORE LOGIC: THE GATEKEEPER ---
+
+    const isLoggedIn = () => !!localStorage.getItem('used_jwt_token');
+
+    function handleLockedInteraction(e) {
+        if (e) e.preventDefault();
+        if (!isLoggedIn()) {
+            document.getElementById('lockModal').style.display = 'flex';
+        } else {
+            // If logged in, remove locks and enable real functionality
+            unlockDashboard();
+        }
+    }
+
+    function unlockDashboard() {
+        // 1. Remove visual "disabled" states
+        document.querySelectorAll('.disabled-action').forEach(el => {
+            el.classList.remove('disabled-action');
+            el.removeAttribute('onclick'); // Remove the guard temporarily
+        });
+
+        // 2. Enable inputs
+        document.getElementById('searchInput').readOnly = false;
+        document.getElementById('categorySelect').disabled = false;
+
+        // 3. Load Real Data
+        loadCategories();
+        loadListings();
+
+        // 4. Bind Real Events
+        document.querySelector('.search-btn').onclick = performSearch;
+        document.getElementById('searchInput').onkeyup = (e) => {
+            if(e.key === 'Enter') performSearch();
+        };
+
+        // Re-bind nav icons to their real functions (if any)
+        // For now, we just leave them clickable since we're unlocked
+
+        console.log("Dashboard Unlocked");
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('lockModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // --- AUTHENTICATED FUNCTIONS (Only run after unlock) ---
+
+    async function loadCategories() {
+        try {
+            const res = await fetch('/api/categories', {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('used_jwt_token') }
+            });
+            if (!res.ok) throw new Error('Failed');
+            const cats = await res.json();
+
+            const select = document.getElementById('categorySelect');
+            select.innerHTML = '<option value="">All Categories</option>'; // Reset
+            cats.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function loadListings(keyword = '', categoryIds = []) {
+        const grid = document.getElementById('listingsGrid');
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+        let url = '/api/listings/search?sortBy=createdAt&sortDir=desc';
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+        if (categoryIds.length > 0) categoryIds.forEach(id => url += `&categoryIds=${id}`);
+
+        try {
+            const res = await fetch(url, {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('used_jwt_token') }
+            });
+            if (!res.ok) throw new Error('API Error');
+            const listings = await res.json();
+            renderListings(listings);
+        } catch (err) {
+            grid.innerHTML = `<div style="grid-column:1/-1; color:red; text-align:center;">Error loading listings.</div>`;
+        }
+    }
+
+    function renderListings(listings) {
+        const grid = document.getElementById('listingsGrid');
+        grid.innerHTML = '';
+        if (listings.length === 0) {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#888;">No items found.</div>';
+            return;
+        }
+
+        listings.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'listing-card';
+            // Note: Image handling simplified for demo. Use placeholder if img is null.
+            const imgHtml = item.img ? `<img src="data:image/jpeg;base64,${item.img}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-image"></i>`;
+
+            card.innerHTML = `
+                <div class="listing-img">${imgHtml}</div>
+                <div class="listing-info">
+                    <div class="listing-title">${escapeHtml(item.title)}</div>
+                    <div class="listing-price">$${item.price.toFixed(2)}</div>
+                    <div class="listing-meta">
+                        <span><i class="fas fa-map-pin"></i> ${escapeHtml(item.location || 'N/A')}</span>
+                        <span>${escapeHtml(item.condition || '')}</span>
+                    </div>
+                    <button onclick="alert('View Details Feature Coming Soon')" class="btn-primary" style="width:100%; margin-top:10px; padding:8px; font-size:0.9rem;">View Item</button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function performSearch() {
+        const keyword = document.getElementById('searchInput').value;
+        const catVal = document.getElementById('categorySelect').value;
+        const cats = catVal ? [parseInt(catVal)] : [];
+        loadListings(keyword, cats);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Check on load: If already logged in (from previous session), unlock immediately
+    document.addEventListener('DOMContentLoaded', () => {
+        if (isLoggedIn()) {
+            unlockDashboard();
+        }
+    });
+
+</script>
+
+</body>
+</html>
