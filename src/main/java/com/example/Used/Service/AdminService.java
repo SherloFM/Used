@@ -69,10 +69,14 @@ public class AdminService {
 
     public void deleteUser(Long id) {
         User user = getUserById(id);
+        String userEmail = user.getEmail();
 
         userRepository.delete(user);
         auditLogService.log(
                 AuditLog.AuditAction.USER_BANNED, currentUserService.getCurrentUser(),
                 "Deleted user id=" + user.getId() + " (" + user.getEmail() + ")");
+
+        emailServices.sendAccountDeletedEmail(userEmail);
+
     }
 }
