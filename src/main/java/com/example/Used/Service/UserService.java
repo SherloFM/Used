@@ -298,6 +298,13 @@ public class UserService {
 
         userRepository.save(user);
 
+        auditLogService.log(
+                AuditLog.AuditAction.PASSWORD_CHANGED,
+                user,
+                "Password changed for " + user.getEmail()
+        );
+
+
         return ResponseEntity.ok(
                 "Password changed successfully"
         );
