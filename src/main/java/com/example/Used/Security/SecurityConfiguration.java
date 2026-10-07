@@ -49,6 +49,12 @@ public class SecurityConfiguration {
                                 "/auth/user/reset-password",
                         "/error"
                         ).permitAll()
+                        .requestMatchers(
+                                "/swagger-ui/**",      // The UI itself
+                                "/v3/api-docs/**",     // The JSON definition
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
                         .anyRequest().authenticated());
 
         http.addFilterBefore(
