@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -32,4 +33,12 @@ public interface ListingRepository extends JpaRepository<Listings,Long>, JpaSpec
             @Param("categoryCount") long categoryCount,
             Pageable pageable
     );
+
+    /** Layer-1 defense: atomic listing claim. Returns 0 if it was already SOLD/DELISTED. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Listings l SET l.status = :newStatus " +
+           "WHERE l.id = :id AND l.status = :expectedStatus")
+    int updateStatusIfCurrent(@Param("id") Long id,
+                              @Param("expectedStatus") Listings.Status expectedStatus,
+                              @Param("newStatus") Listings.Status newStatus);
 }

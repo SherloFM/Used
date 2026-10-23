@@ -44,6 +44,10 @@ public class UserProfile {
     @Column
     private String profileBio;
 
+    /** Relative URL of the avatar image, e.g. "/images/avatar1.jpg" */
+    @Column
+    private String imgUrl;
+
     @Column
     @CreationTimestamp
     private LocalDateTime createdAt;

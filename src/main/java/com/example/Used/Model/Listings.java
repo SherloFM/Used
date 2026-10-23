@@ -58,6 +58,10 @@ public class Listings {
     @Column
     private String location;
 
+    /** Relative URL of the product image, e.g. "/images/laptop.jpg" */
+    @Column
+    private String imgUrl;
+
 
     public enum Status{
         ACTIVE,
