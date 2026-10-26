@@ -86,6 +86,7 @@ public class Listings {
     private User user;
 
     @OneToMany(mappedBy = "listing")
+    @JsonIgnore
     private List<Transactions> transactions;
 
     @JsonIgnore

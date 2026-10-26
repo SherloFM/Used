@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -118,23 +119,88 @@ public class PaymentWorker {
                 emailServices.sendListingSoldEmail(seller.getEmail(), title);
             }
 
-            notificationService.sendToUser(payment.getSeller().getId(), "PAYMENT_COMPLETED", Map.of(
+            notificationService.sendToUser(payment.getSeller().getId(), "NOTIFICATION", Map.of(
+                    "title", "Item sold",
+                    "message", "Your item '" + title + "' was sold!",
+                    "type", "success",
                     "paymentId", payment.getId(),
                     "listingId", payment.getListing().getId(),
-                    "amount", payment.getAmount().toPlainString(),
-                    "message", "Your item '" + title + "' was sold!"));
+                    "amount", payment.getAmount().toPlainString()));
         });
+    }
+
+    /**
+     * Seller accepted a cash-on-delivery request. No money moves: the listing
+     * is claimed (ACTIVE -> SOLD) and a COMPLETED Transactions row is written,
+     * inside ONE transaction. Two Accept clicks race on the status UPDATE and
+     * the listing UPDATE, so only one can win.
+     */
+    @Transactional
+    public void acceptCodPayment(Long paymentId, Long sellerId) {
+        Payment payment = loadPendingCodForSeller(paymentId, sellerId);
+
+        if (paymentRepository.updateStatusIfCurrent(
+                paymentId, Payment.Status.PENDING, Payment.Status.PROCESSING) == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+
+        int claimed = listingRepository.updateStatusIfCurrent(
+                payment.getListing().getId(), Listings.Status.ACTIVE, Listings.Status.SOLD);
+        if (claimed == 0) {
+            throw new PaymentFailedException("ALREADY_SOLD");
+        }
+
+        Transactions transaction = new Transactions();
+        transaction.setListing(payment.getListing());
+        transaction.setBuyer(payment.getBuyer());
+        transaction.setSeller(payment.getSeller());
+        transaction.setAmount(payment.getAmount().doubleValue()); // legacy Transactions.amount is double
+        transaction.setStatus(Transactions.Status.COMPLETED);
+        transactionsRepository.save(transaction);
+
+        if (paymentRepository.markCompletedIfCurrent(
+                paymentId, Payment.Status.PROCESSING, Payment.Status.COMPLETED) == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+    }
+
+    /** Seller declined: the payment is closed with reason COD_DECLINED. */
+    @Transactional
+    public void declineCodPayment(Long paymentId, Long sellerId) {
+        loadPendingCodForSeller(paymentId, sellerId);
+
+        int updated = paymentRepository.failIfActive(
+                paymentId,
+                "COD_DECLINED",
+                Payment.Status.FAILED,
+                List.of(Payment.Status.PENDING, Payment.Status.PROCESSING));
+
+        if (updated == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+    }
+
+    private Payment loadPendingCodForSeller(Long paymentId, Long sellerId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentFailedException("PAYMENT_NOT_FOUND"));
+
+        if (payment.getMethod() != Payment.Method.COD
+                || payment.getStatus() != Payment.Status.PENDING
+                || !payment.getSeller().getId().equals(sellerId)) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+        return payment;
     }
 
     /** Own transaction, started AFTER the payment rolled back, so the failure is kept. */
     @Transactional
     public void markFailed(Long paymentId, String reason) {
-        paymentRepository.findById(paymentId).ifPresent(payment -> {
-            payment.setStatus(Payment.Status.FAILED);
-            payment.setFailureReason(reason);
-            payment.setProcessedAt(LocalDateTime.now());
-            paymentRepository.save(payment);
-        });
+        // Conditional UPDATE: a late failure can never overwrite COMPLETED.
+        paymentRepository.failIfActive(
+                paymentId,
+                reason,
+                Payment.Status.FAILED,
+                List.of(Payment.Status.PENDING, Payment.Status.PROCESSING));
     }
 
     /** Carries the failure reason: ALREADY_SOLD, INSUFFICIENT_FUNDS, ... */

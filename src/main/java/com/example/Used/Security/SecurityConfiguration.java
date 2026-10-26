@@ -72,6 +72,7 @@ public class SecurityConfiguration {
                                 "/profile",
                                 "/create-listing",
                                 "/forgot-password",
+                                "/payment/**",
                                 "/listing/**",
                                 "/css/**", "/js/**",
                                 "/images/**",

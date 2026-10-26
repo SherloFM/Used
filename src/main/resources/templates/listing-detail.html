@@ -131,9 +131,9 @@
 </head>
 <body>
 
-<div class="container">
+<div th:replace="~{fragments/navbar :: nav}"></div>
 
-    <!-- BACK NAVIGATION -->
+<div class="page-container">
     <div class="back-nav">
         <a href="/"><i class="fas fa-arrow-left"></i> Back to Search</a>
     </div>
@@ -321,51 +321,25 @@
         // 1. Auth Check
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
-            alert("Please log in to purchase items.");
+            if (window.AppErrors) AppErrors.showToast("Please log in to purchase items.", true); else alert("Please log in to purchase items.");
             window.location.href = '/login';
             return;
         }
 
-        // 2. Confirmation
-        if (!confirm(`Are you sure you want to buy "${listingData.title}" for $${listingData.price}?`)) {
+        if (listingData && listingData.status === 'SOLD') {
+            if (window.AppErrors) AppErrors.showToast("This item has already been sold.", true); else alert("This item has already been sold.");
             return;
         }
 
-        const btn = document.getElementById('buyBtn');
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
-        try {
-            // 3. Call API: POST /api/listings/{id}/buy
-            const res = await fetch(`/api/listings/${currentListingId}/buy`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (res.ok) {
-                // Success
-                alert("Purchase successful! The item has been marked as SOLD.");
-                // Reload page to update status to SOLD immediately
-                window.location.reload();
-            } else {
-                // Handle specific errors from backend (e.g., "Already sold", "Insufficient funds")
-                const errText = await res.text();
-                throw new Error(errText || "Purchase failed.");
-            }
-
-        } catch (err) {
-            console.error(err);
-            alert("Error: " + err.message);
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        }
+        window.location.href = '/payment/' + currentListingId;
     }
-
 </script>
+
+</div>
+
+<script src="/js/app-errors.js"></script>
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
 
 </body>
 </html>

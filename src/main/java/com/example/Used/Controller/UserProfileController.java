@@ -2,12 +2,11 @@ package com.example.Used.Controller;
 
 import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Requests.UserProfileRequests;
+import com.example.Used.Model.Responses.ProfileResponse;
 import com.example.Used.Model.User;
-import com.example.Used.Model.UserProfile;
 import com.example.Used.Service.AuditLogService;
 import com.example.Used.Service.CurrentUserService;
 import com.example.Used.Service.UserProfileService;
-import com.example.Used.Service.UserService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,19 +24,19 @@ public class UserProfileController {
     private AuditLogService auditLogService;
 
     @GetMapping
-    public UserProfile getProfile() {
+    public ProfileResponse getProfile() {
         return userProfileService.getProfile();
     }
 
     @PutMapping
-    public UserProfile updateProfile(
+    public ProfileResponse updateProfile(
             @RequestBody UserProfileRequests request
     ) {
         return userProfileService.updateProfile(request);
     }
 
     @PutMapping("/image")
-    public UserProfile uploadImage(
+    public ProfileResponse uploadImage(
             @RequestParam("img") MultipartFile img
     ) throws IOException {
         return userProfileService.uploadProfileImage(img);

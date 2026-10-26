@@ -2,18 +2,19 @@ package com.example.Used.Service;
 
 import com.example.Used.Exceptions.InformationExistException;
 import com.example.Used.Model.Requests.UserProfileRequests;
+import com.example.Used.Model.Responses.ProfileResponse;
 import com.example.Used.Model.User;
 import com.example.Used.Model.UserProfile;
+import com.example.Used.Model.Wallet;
 import com.example.Used.Repository.UserProfileRepository;
 import com.example.Used.Repository.UserRepository;
+import com.example.Used.Repository.WalletRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.math.BigDecimal;
 
 @Service
 public class UserProfileService {
@@ -21,69 +22,84 @@ public class UserProfileService {
     private final CurrentUserService currentUserService;
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
 
     @Autowired
     public UserProfileService(
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
+            WalletRepository walletRepository,
             CurrentUserService currentUserService
     ) {
         this.userProfileRepository = userProfileRepository;
         this.currentUserService = currentUserService;
         this.userRepository = userRepository;
+        this.walletRepository = walletRepository;
     }
 
-    public UserProfile getProfile(){
+    public ProfileResponse getProfile() {
+        return toResponse(currentUserService.getCurrentUser());
+    }
+
+    public ProfileResponse updateProfile(UserProfileRequests userProfileRequests) {
         User user = currentUserService.getCurrentUser();
+        UserProfile profile = user.getUserProfile();
+        boolean created = false;
 
-        return user.getUserProfile();
-    }
-
-    public UserProfile updateProfile(
-            UserProfileRequests userProfileRequests
-    ){
-        User user = currentUserService.getCurrentUser();
-
-        UserProfile userProfileObject = user.getUserProfile();
-
-
-        userProfileObject.setFirstName(userProfileRequests.getFirstName());
-        userProfileObject.setLastName(userProfileRequests.getLastName());
-        userProfileObject.setPhoneNumber(userProfileRequests.getPhoneNumber());
-        userProfileObject.setProfileBio(userProfileRequests.getProfileBio());
-
-        return userProfileRepository.save(userProfileObject);
-    }
-
-    public UserProfile uploadProfileImage(MultipartFile imgFile) throws IOException {
-        // 1. Get current logged-in user
-        User currentUser = currentUserService.getCurrentUser();
-
-        // 2. Find their profile
-        UserProfile profile = userRepository.findById(currentUser.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"))
-                .getUserProfile();
-
+        // Some accounts (e.g. seeded buyers, admin) never had a profile row.
         if (profile == null) {
-            throw new RuntimeException("Profile not initialized");
+            profile = new UserProfile();
+            user.setUserProfile(profile);
+            created = true;
         }
 
-        // 3. Validate file size/type (Optional but recommended)
-        if (imgFile.getSize() > 5 * 1024 * 1024) { // 5MB limit
-            throw new IllegalArgumentException("Image too large. Max 5MB.");
+        profile.setFirstName(userProfileRequests.getFirstName());
+        profile.setLastName(userProfileRequests.getLastName());
+        profile.setPhoneNumber(userProfileRequests.getPhoneNumber());
+        profile.setProfileBio(userProfileRequests.getProfileBio());
+
+        userProfileRepository.save(profile);
+        if (created) {
+            userRepository.save(user); // persist the new profile link on users
+        }
+
+        return toResponse(user);
+    }
+
+    public ProfileResponse uploadProfileImage(MultipartFile imgFile) throws IOException {
+        User user = currentUserService.getCurrentUser();
+        UserProfile profile = user.getUserProfile();
+        boolean created = false;
+
+        if (profile == null) {
+            profile = new UserProfile();
+            user.setUserProfile(profile);
+            created = true;
+        }
+
+        if (imgFile.getSize() > 5 * 1024 * 1024) {
+            throw new InformationExistException("Image is too large. Maximum size is 5 MB.");
         }
         String contentType = imgFile.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Invalid file type. Must be an image.");
+            throw new InformationExistException("Please choose an image file.");
         }
 
-        // 4. Convert to byte array and save
-        byte[] imageBytes = imgFile.getBytes();
-        profile.setImg(imageBytes);       // Assuming field name is 'img'
-        profile.setImgtype(contentType);  // Assuming field name is 'imgtype'
+        profile.setImg(imgFile.getBytes());
+        profile.setImgtype(contentType);
 
         userProfileRepository.save(profile);
+        if (created) {
+            userRepository.save(user);
+        }
 
-        return profile;
+        return toResponse(user);
+    }
+
+    private ProfileResponse toResponse(User user) {
+        BigDecimal balance = walletRepository.findByUserId(user.getId())
+                .map(Wallet::getBalance)
+                .orElse(BigDecimal.ZERO);
+        return ProfileResponse.from(user, user.getUserProfile(), balance);
     }
 }

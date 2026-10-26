@@ -1,38 +1,36 @@
 package com.example.Used.Model.Responses;
 
-import com.example.Used.Model.Payment;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.time.LocalDateTime;
-
-/** Returned by POST /api/payments: tells the client whether the task was
- *  accepted, was a duplicate, and where to poll for the outcome. */
+@Getter
+@Setter
 public class PaymentResult {
+    private Long paymentId;
+    private boolean duplicate;
+    private int queuePosition;
 
-    public enum Outcome { ACCEPTED, DUPLICATE }
+    public static PaymentResult duplicate(Long paymentId) {
+        return duplicate(paymentId, 1);
+    }
 
-    public Long paymentId;
-    public Long listingId;
-    public Outcome outcome;
-    public Payment.Status currentStatus;
-    public String pollUrl;
-    public LocalDateTime createdAt;
-
-    static PaymentResult from(Payment p, Outcome o) {
+    public static PaymentResult duplicate(Long paymentId, int position) {
         PaymentResult r = new PaymentResult();
-        r.paymentId = p.getId();
-        r.listingId = p.getListing().getId();
-        r.outcome = o;
-        r.currentStatus = p.getStatus();
-        r.pollUrl = "/api/payments/" + p.getId();
-        r.createdAt = p.getCreatedAt();
+        r.paymentId = paymentId;
+        r.duplicate = true;
+        r.queuePosition = position;
         return r;
     }
 
-    public static PaymentResult accepted(Payment p) {
-        return from(p, Outcome.ACCEPTED);
+    public static PaymentResult accepted(Long paymentId) {
+        return accepted(paymentId, 1);
     }
 
-    public static PaymentResult duplicate(Payment p) {
-        return from(p, Outcome.DUPLICATE);
+    public static PaymentResult accepted(Long paymentId, int position) {
+        PaymentResult r = new PaymentResult();
+        r.paymentId = paymentId;
+        r.duplicate = false;
+        r.queuePosition = position;
+        return r;
     }
 }

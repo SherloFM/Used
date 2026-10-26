@@ -231,73 +231,7 @@
 <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
 <body>
 
-<!-- NAVBAR -->
-<nav class="navbar">
-    <div class="logo" onclick="window.location.href='/'"><i class="fas fa-recycle"></i> USED</div>
-
-    <!-- SEARCH BAR -->
-    <div class="search-container" id="globalSearchContainer">
-        <!-- 1. Tag Wrapper -->
-        <div class="tag-input-wrapper">
-            <div id="searchTagsList" class="tags-list"></div>
-            <input type="text" id="globalCategoryInput" class="tag-field" placeholder="Add categories..." autocomplete="off">
-            <div id="globalSuggestionsDropdown" class="suggestions-dropdown"></div>
-        </div>
-
-        <!-- 2. Keyword Input -->
-        <input type="text" id="keywordInput" class="search-keyword-input" placeholder="Search keywords...">
-
-        <!-- 3. Search Button -->
-        <button onclick="performGlobalSearch()" class="search-btn"><i class="fas fa-search"></i></button>
-    </div>
-
-    <div class="nav-icons">
-        <a href="#" class="disabled-action" onclick="handleLockedInteraction(event)" title="Wishlist"><i class="far fa-heart"></i></a>
-        <a href="#" class="disabled-action" onclick="handleLockedInteraction(event)" title="Cart"><i class="fas fa-shopping-cart"></i></a>
-
-        <!-- NOTIFICATION BELL -->
-        <div class="notification-wrapper" style="position: relative; margin-right: 15px;">
-            <button id="notifBtn" class="icon-btn" onclick="toggleNotifDropdown()">
-                <i class="far fa-bell"></i>
-                <span id="notifBadge" class="badge-count" style="display:none;">0</span>
-            </button>
-
-            <!-- Dropdown History -->
-            <div id="notifDropdown" class="dropdown-menu" style="right: -10px; min-width: 300px; max-height: 400px; overflow-y: auto; display: none;">
-                <div class="dropdown-header">Recent Notifications</div>
-                <hr style="border:0; border-top:1px solid #eee; margin:0.5rem 0;">
-                <div id="notifList">
-                    <p style="text-align:center; color:#888; padding:1rem; font-size:0.9rem;">No notifications yet.</p>
-                </div>
-            </div>
-        </div>
-        <!-- USER DROPDOWN -->
-        <div class="user-menu-wrapper">
-            <button id="userMenuBtn" class="icon-btn" onclick="toggleUserMenu()" title="My Account">
-                <i class="fas fa-user-circle"></i>
-            </button>
-
-            <div id="userDropdown" class="dropdown-menu">
-                <div class="dropdown-header">
-                    <span id="userNameDisplay" style="font-weight:bold; color:#2c3e50;">Guest</span>
-                </div>
-                <hr style="border:0; border-top:1px solid #eee; margin:0.5rem 0;">
-
-                <!-- Authenticated Options -->
-                <div id="authOptions" style="display:none;">
-                    <a href="/profile" class="dropdown-item"><i class="fas fa-id-card"></i> My Profile</a>
-                    <button class="dropdown-item danger" onclick="logoutUser()"><i class="fas fa-sign-out-alt"></i> Log Out</button>
-                </div>
-
-                <!-- Guest Options -->
-                <div id="guestOptions">
-                    <a href="/login" class="dropdown-item"><i class="fas fa-sign-in-alt"></i> Login</a>
-                    <a href="/register" class="dropdown-item"><i class="fas fa-user-plus"></i> Register</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</nav>
+<div th:replace="~{fragments/navbar :: nav}"></div>
 
 <!-- HERO SECTION -->
 <section class="hero">
@@ -570,7 +504,7 @@
 
  window.addGlobalTagById = (id, name) => {
      if (selectedCategoryIds.includes(id)) return;
-     if (selectedCategoryIds.length >= 5) { alert("Max 5 tags."); return; }
+     if (selectedCategoryIds.length >= 5) { if (window.AppErrors) AppErrors.showToast("Max 5 tags.", true); return; }
 
      selectedCategoryIds.push(id);
      const chip = document.createElement('div');
@@ -822,5 +756,8 @@
  }
 </script>
 
+<script th:src="@{/js/app-errors.js}"></script>
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
 </body>
 </html>
