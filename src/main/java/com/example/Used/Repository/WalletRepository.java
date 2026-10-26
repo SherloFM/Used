@@ -25,6 +25,16 @@ WalletRepository extends JpaRepository<Wallet, Long> {
     Optional<Wallet> findByUserId(Long userId);
 
     /**
+     * Creates the wallet only if it does not exist yet, in ONE statement.
+     * The plain "find then save" version can lose a race on the unique user_id.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "INSERT INTO user_wallets (user_id, balance, created_at, updated_at) " +
+                   "VALUES (:userId, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) " +
+                   "ON CONFLICT (user_id) DO NOTHING", nativeQuery = true)
+    int createIfMissing(@Param("userId") Long userId);
+
+    /**
      * Layer-3 defense (deadlock prevention): locks the wallet row FOR UPDATE
      * until the surrounding transaction commits or rolls back.
      * Callers MUST lock wallets in ascending user_id order.

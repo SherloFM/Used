@@ -54,6 +54,20 @@ public class Payment {
         FAILED
     }
 
+    public enum Method {
+        WALLET,
+        CARD,
+        COD
+    }
+
+    /**
+     * Nullable on purpose: rows created before this column existed are still
+     * valid. The application treats null as WALLET.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column
+    private Method method;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
@@ -65,6 +79,9 @@ public class Payment {
     /** When the worker finished (COMPLETED or FAILED) */
     @Column
     private LocalDateTime processedAt;
+
+    @Column
+    private LocalDateTime expiresAt;
 
     @Column
     @CreationTimestamp

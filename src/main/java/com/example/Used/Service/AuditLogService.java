@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuditLogService {
@@ -44,9 +45,15 @@ public class AuditLogService {
 
         // 3) Live notification, routed per the matrix
         if (notifyUserId == null) {
-            notificationService.broadcast(action.name(), saved);
+            notificationService.broadcast(action.name(), Map.of(
+                    "title", action.name(),
+                    "message", String.valueOf(details),
+                    "type", "info"));
         } else {
-            notificationService.sendToUser(notifyUserId, action.name(), saved);
+            notificationService.sendToUser(notifyUserId, action.name(), Map.of(
+                    "title", action.name(),
+                    "message", String.valueOf(details),
+                    "type", "info"));
         }
     }
 

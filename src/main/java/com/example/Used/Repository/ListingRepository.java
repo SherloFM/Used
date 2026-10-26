@@ -15,7 +15,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ListingRepository extends JpaRepository<Listings,Long>, JpaSpecificationExecutor<Listings> {
+    @Query("SELECT l FROM Listings l LEFT JOIN FETCH l.user WHERE l.id = :id")
+    Optional<Listings> findByIdWithUser(@Param("id") Long id);
+
     Optional<Listings> findByIdAndUserId(Long id, Long userId);
+
+    @Query("SELECT l FROM Listings l LEFT JOIN FETCH l.user WHERE l.id = :id AND l.user.id = :userId")
+    Optional<Listings> findByIdAndUserIdWithUser(@Param("id") Long id, @Param("userId") Long userId);
 
     @Query("SELECT l FROM Listings l " +
             "WHERE l.status = :status " +

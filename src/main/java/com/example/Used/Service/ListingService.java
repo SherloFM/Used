@@ -97,9 +97,10 @@ public class ListingService {
     }
 
     // GET ONE LISTING
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public Listings getListing(Long id){
 
-        Listings listing = listingsRepository.findById(id).orElseThrow(
+        Listings listing = listingsRepository.findByIdWithUser(id).orElseThrow(
                 ()-> new InformationExistException("no listing")
         );
         return listing;

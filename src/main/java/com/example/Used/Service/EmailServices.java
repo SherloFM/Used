@@ -122,8 +122,62 @@ public class EmailServices {
         javaMailSender.send(message);
     }
 
-    public void sendAccountDeletedEmail(String email) {
+    public void sendCodRequestEmail(
+            String sellerEmail,
+            String listingTitle,
+            String buyerName,
+            java.math.BigDecimal amount
+    ) {
 
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(sellerEmail);
+        message.setSubject("Used - Cash on Delivery Request");
+
+        message.setText(
+                "A buyer wants to pay cash on delivery for your listing.\n\n" +
+                        "Listing: " + listingTitle + "\n" +
+                        "Buyer: " + buyerName + "\n" +
+                        "Amount: " + amount.toPlainString() + "\n\n" +
+                        "Open Used and check the request notification to accept or decline."
+        );
+
+        javaMailSender.send(message);
+    }
+
+    public void sendCodAcceptedEmail(String buyerEmail, String listingTitle) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(buyerEmail);
+        message.setSubject("Used - Cash on Delivery Request Accepted");
+
+        message.setText(
+                "Good news! The seller accepted your cash-on-delivery request.\n\n" +
+                        "Listing: " + listingTitle + "\n\n" +
+                        "Please arrange the payment and pickup with the seller."
+        );
+
+        javaMailSender.send(message);
+    }
+
+    public void sendCodDeclinedEmail(String buyerEmail, String listingTitle) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(buyerEmail);
+        message.setSubject("Used - Cash on Delivery Request Declined");
+
+        message.setText(
+                "The seller declined your cash-on-delivery request.\n\n" +
+                        "Listing: " + listingTitle + "\n\n" +
+                        "The item may still be available. You can try another payment method."
+        );
+
+        javaMailSender.send(message);
+    }
+
+    public void sendAccountDeletedEmail(String email) {
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(email);

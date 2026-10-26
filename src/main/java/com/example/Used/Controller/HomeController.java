@@ -44,4 +44,10 @@ public class HomeController {
         // We don't fetch data here; JS will do it via API for better SPA feel
         return "listing-detail";
     }
+
+    @GetMapping("/payment/{id}")
+    public String paymentPage(@PathVariable Long id) {
+        // The page polls /api/payments/{id}; data is loaded by JS.
+        return "payment";
+    }
 }

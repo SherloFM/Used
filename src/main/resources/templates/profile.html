@@ -288,7 +288,9 @@
 </head>
 <body>
 
-<div class="container">
+<div th:replace="~{fragments/navbar :: nav}"></div>
+
+<div class="page-container">
 
     <!-- LOADING STATE -->
     <div id="loadingState">
@@ -419,7 +421,7 @@
 
         } catch (err) {
             console.error(err);
-            alert("Could not load profile. Please log in again.");
+            if (window.AppErrors) AppErrors.showToast("Could not load profile. Please log in again.", true); else alert("Could not load profile. Please log in again.");
             window.location.href = '/login';
         } finally {
             document.getElementById('loadingState').style.display = 'none';
@@ -524,7 +526,7 @@
 
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
-            alert("Session lost. Reloading...");
+            if (window.AppErrors) AppErrors.showToast("Session lost. Reloading...", true); else alert("Session lost. Reloading...");
             window.location.reload();
             return;
         }
@@ -575,7 +577,7 @@
 
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
-            alert("Session expired.");
+            if (window.AppErrors) AppErrors.showToast("Session expired.", true); else alert("Session expired.");
             window.location.href = '/login';
             return;
         }
@@ -644,6 +646,11 @@
     }
 
 </script>
+
+</div>
+
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
 
 </body>
 </html>

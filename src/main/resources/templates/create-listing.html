@@ -289,7 +289,9 @@
 </head>
 <body>
 
-<div class="container">
+<div th:replace="~{fragments/navbar :: nav}"></div>
+
+<div class="page-container">
     <div class="form-card">
 
         <div class="page-header">
@@ -389,7 +391,7 @@
     function checkAuth() {
         const token = localStorage.getItem(TOKEN_KEY);
         if (!token) {
-            alert("You must be logged in to sell an item.");
+            if (window.AppErrors) AppErrors.showToast("You must be logged in to sell an item.", true); else alert("You must be logged in to sell an item.");
             window.location.href = '/login';
         }
     }
@@ -633,6 +635,11 @@
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
 </script>
+
+</div>
+
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
 
 </body>
 </html>

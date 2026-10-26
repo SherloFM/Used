@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Used Marketplace</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f5f7fa; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+        .grid { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+        .card-header { padding: 1.5rem; border-bottom: 1px solid #f0f0f0; }
+        .card-body { padding: 1.5rem; }
+        .method { display:flex; align-items:center; gap:12px; padding:14px; border:2px solid #eee; border-radius:12px; margin-bottom:12px; cursor:pointer; }
+        .method.active { border-color: #a06cd5; background: #faf7ff; }
+        .method.disabled { opacity: 0.5; cursor: not-allowed; }
+        .dot { width:18px; height:18px; border-radius:50%; border:2px solid #ccc; }
+        .method.active .dot { border-color: #a06cd5; background: radial-gradient(#a06cd5 40%, transparent 45%); }
+        .summary-row { display:flex; justify-content:space-between; padding:8px 0; color:#555; }
+        .summary-row.total { font-weight:700; font-size:1.1rem; color:#2c3e50; border-top:1px solid #eee; padding-top:12px; margin-top:12px; }
+        .btn-buy { width:100%; padding:14px; border:none; border-radius:12px; background: linear-gradient(90deg,#6ec3f4,#a06cd5); color:white; font-weight:700; font-size:1rem; cursor:pointer; }
+        .btn-buy:disabled { opacity:0.6; cursor:not-allowed; }
+        #statusCard { display:none; text-align:center; padding:2rem; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/navbar :: nav}"></div>
+
+<div class="page-container">
+    <div class="back-nav" style="margin-bottom:1.5rem;">
+        <a href="#" onclick="history.back(); return false;" style="color:#a06cd5; text-decoration:none; font-weight:600;"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+
+    <div id="checkoutGrid" class="grid">
+        <div class="card">
+            <div class="card-header">
+                <h2 style="margin:0; color:#2c3e50;">Choose payment method</h2>
+                <p style="margin:6px 0 0 0; color:#888;">Secure checkout for your order</p>
+            </div>
+            <div class="card-body">
+                <div class="method active" data-method="WALLET" onclick="selectMethod(this)">
+                    <div class="dot"></div>
+                    <div>
+                        <div style="font-weight:600;">Wallet</div>
+                        <div style="color:#888; font-size:0.9rem;">Pay using your account balance</div>
+                    </div>
+                    <div style="margin-left:auto; color:#27ae60;" id="walletBalance">--</div>
+                </div>
+                <div class="method disabled" data-method="CARD" onclick="selectMethod(this)">
+                    <div class="dot"></div>
+                    <div>
+                        <div style="font-weight:600;">Credit/Debit Card <span style="background:#eee;padding:2px 8px;border-radius:10px;font-size:0.75rem;">Coming soon</span></div>
+                        <div style="color:#888; font-size:0.9rem;">Visa, Mastercard</div>
+                    </div>
+                </div>
+                <div class="method" data-method="COD" onclick="selectMethod(this)">
+                    <div class="dot"></div>
+                    <div>
+                        <div style="font-weight:600;">Cash on Delivery</div>
+                        <div style="color:#888; font-size:0.9rem;">Seller will confirm your request on screen</div>
+                    </div>
+                </div>
+                <button class="btn-buy" id="payBtn" onclick="placeOrder()"><i class="fas fa-lock"></i> Place Order</button>
+                <p id="payMsg" style="text-align:center; color:#888; margin-top:10px;"></p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 style="margin:0;">Order Summary</h3>
+            </div>
+            <div class="card-body">
+                <div style="display:flex; gap:12px; margin-bottom:16px;">
+                    <div id="summaryImg" style="width:70px;height:70px;background:#eee;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-image" style="color:#ccc;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:600;" id="summaryTitle">Loading...</div>
+                        <div style="color:#888;" id="summaryMeta">--</div>
+                    </div>
+                </div>
+                <div class="summary-row"><span>Price</span><span id="summaryPrice">$0.00</span></div>
+                <div class="summary-row"><span>Fees</span><span>$0.00</span></div>
+                <div class="summary-row total"><span>Total</span><span id="summaryTotal">$0.00</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusCard" class="card">
+        <div class="card-body">
+            <i id="statusIcon" class="fas fa-spinner fa-spin" style="font-size:3rem; color:#a06cd5;"></i>
+            <h2 id="statusTitle" style="margin:1rem 0 0.5rem 0;">Processing your payment</h2>
+            <p id="statusText" style="color:#666;">Please wait...</p>
+            <a href="/" class="btn btn-ghost" style="margin-top:1rem;">Back to Home</a>
+        </div>
+    </div>
+</div>
+
+<script src="/js/app-errors.js"></script>
+<script src="/js/cod-ping.js"></script>
+<script>
+    const TOKEN_KEY = 'used_jwt_token';
+    const listingId = location.pathname.split('/').pop();
+    let selectedMethod = 'WALLET';
+    let listing = null;
+    let paymentId = null;
+    let pollTimer = null;
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const token = getToken();
+        if (!token) { window.location.href = '/login'; return; }
+        try {
+            const lres = await fetch(`/api/listings/${listingId}`);
+            listing = await lres.json();
+            document.getElementById('summaryTitle').textContent = listing.title;
+            document.getElementById('summaryMeta').textContent = (listing.condition||'') + ' • ' + (listing.location||'');
+            const price = parseFloat(listing.price||0);
+            document.getElementById('summaryPrice').textContent = '$' + price.toFixed(2);
+            document.getElementById('summaryTotal').textContent = '$' + price.toFixed(2);
+            const imgWrap = document.getElementById('summaryImg');
+            if (listing.imgUrl) {
+                imgWrap.innerHTML = '<img src="'+listing.imgUrl+'" style="width:100%;height:100%;object-fit:cover;">';
+            } else if (listing.img && listing.imgtype) {
+                imgWrap.innerHTML = '<img src="data:'+listing.imgtype+';base64,'+listing.img+'" style="width:100%;height:100%;object-fit:cover;">';
+            }
+            const wres = await fetch('/api/wallet', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (wres.ok) {
+                const w = await wres.json();
+                document.getElementById('walletBalance').textContent = 'Balance: $' + Number(w.balance).toFixed(2);
+            }
+        } catch(e) { console.error(e); }
+    });
+
+    function selectMethod(el) {
+        if (el.classList.contains('disabled')) return;
+        document.querySelectorAll('.method').forEach(m => m.classList.remove('active'));
+        el.classList.add('active');
+        selectedMethod = el.dataset.method;
+    }
+
+    async function placeOrder() {
+        const token = getToken();
+        const btn = document.getElementById('payBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing...';
+        try {
+            const res = await fetch(`/api/payments/${listingId}?method=${selectedMethod}`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const body = await res.json().catch(()=>({}));
+            if (!res.ok) {
+                document.getElementById('payMsg').textContent = window.AppErrors ? AppErrors.fromResponse(res,body) : (body.message||'Failed');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+                return;
+            }
+            paymentId = body.paymentId;
+            const qpos = body.queuePosition || 1;
+            document.getElementById('checkoutGrid').style.display = 'none';
+            document.getElementById('statusCard').style.display = 'block';
+            if (selectedMethod === 'COD') {
+                document.getElementById('statusIcon').className = 'fas fa-handshake';
+                document.getElementById('statusIcon').style.color = '#a06cd5';
+                document.getElementById('statusTitle').textContent = 'Waiting for seller approval';
+                if (qpos > 1) {
+                    document.getElementById('statusText').textContent = 'You are #' + qpos + ' in queue. ' + (qpos-1) + ' buyer(s) ahead of you. Waiting for seller...';
+                } else {
+                    document.getElementById('statusText').textContent = "We've sent the seller a ping. You'll be notified when they accept or decline. (5 min timeout)";
+                }
+                startCountdown();
+                pollStatus();
+            } else {
+                document.getElementById('statusIcon').className = 'fas fa-spinner fa-spin';
+                document.getElementById('statusTitle').textContent = 'Processing your payment';
+                document.getElementById('statusText').textContent = 'This usually takes a few seconds...';
+                pollStatus();
+            }
+        } catch(e) {
+            document.getElementById('payMsg').textContent = 'Could not reach the server.';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+        }
+    }
+
+    function startCountdown() { /* timer shown via expiresAt from server */ }
+
+    function pollStatus() {
+        const token = getToken();
+        pollTimer = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/payments/${paymentId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) return;
+                const s = await res.json();
+                if (s.queuePosition && s.queuePosition > 1 && s.status === 'PENDING') {
+                    document.getElementById('statusText').textContent = 'You are #' + s.queuePosition + ' in queue. ' + (s.queuePosition-1) + ' buyer(s) ahead. Waiting...';
+                }
+                if (s.status === 'COMPLETED') {
+                    clearInterval(pollTimer);
+                    document.getElementById('statusIcon').className = 'fas fa-check-circle';
+                    document.getElementById('statusIcon').style.color = '#27ae60';
+                    document.getElementById('statusTitle').textContent = 'Payment Successful';
+                    document.getElementById('statusText').textContent = 'Your order has been confirmed.';
+                } else if (s.status === 'FAILED') {
+                    clearInterval(pollTimer);
+                    document.getElementById('statusIcon').className = 'fas fa-times-circle';
+                    document.getElementById('statusIcon').style.color = '#e74c3c';
+                    document.getElementById('statusTitle').textContent = 'Payment Failed';
+                    document.getElementById('statusText').textContent = window.AppErrors ? AppErrors.paymentReason(s.failureReason) : (s.failureReason || 'Something went wrong.');
+                }
+            } catch(e) {}
+        }, 1000);
+    }
+</script>
+
+</div>
+
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
+</body>
+</html>
