@@ -18,17 +18,20 @@ public class TransactionServices {
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
     private final AuditLogService auditLogService;
+    private final FavoriteService favoriteService;
 
     public TransactionServices(TransactionsRepository transactionsRepository,
                                ListingRepository listingRepository,
                                CurrentUserService currentUserService,
                                EmailServices emailServices,
-                               AuditLogService auditLogService) {
+                               AuditLogService auditLogService,
+                               FavoriteService favoriteService) {
         this.transactionsRepository = transactionsRepository;
         this.listingRepository = listingRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
         this.auditLogService = auditLogService;
+        this.favoriteService = favoriteService;
     }
 
     @Transactional
@@ -78,6 +81,9 @@ public class TransactionServices {
         listing.setStatus(Listings.Status.SOLD);
 
         listingRepository.save(listing);
+
+        // Notify users who saved this listing, then drop their favorites
+        favoriteService.handleListingRemoved(listingId, "sold");
 
 
         auditLogService.log(

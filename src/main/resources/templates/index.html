@@ -225,6 +225,21 @@
     from { opacity: 1; }
     to { opacity: 0; }
 }
+        .chat-float {
+            position: fixed; top: 80px; right: 20px; width: 56px; height: 56px;
+            border-radius: 50%; background: linear-gradient(90deg,#6ec3f4,#a06cd5);
+            color:white; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:10001;
+        }
+        .chat-all {
+            position: fixed; top: 150px; right: 20px; width: 320px; max-height: 420px;
+            background:white; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.15);
+            display:none; flex-direction:column; z-index:10001; overflow:hidden;
+        }
+        .chat-all-header { background: linear-gradient(90deg,#6ec3f4,#a06cd5); color:white; padding:10px; display:flex; justify-content:space-between; }
+        .chat-all-list { overflow-y:auto; }
+        .chat-all-item { padding:10px; border-bottom:1px solid #f0f0f0; cursor:pointer; }
+        .chat-all-item:hover { background:#f9f9f9; }
+        .chat-notice { padding:16px; color:#777; text-align:center; }
     </style>
 </head>
 <!-- TOAST CONTAINER -->
@@ -297,6 +312,15 @@
         <small style="color:#999; display:block; margin-top:1rem;">Don't have an account? <a href="/register" style="color:#a06cd5;">Register here</a></small>
     </div>
 </div>
+
+<button id="chatAllFloat" class="chat-float" type="button" aria-label="Open chats"><i class="fas fa-comments"></i></button>
+<div id="chatAllPanel" class="chat-all">
+    <div class="chat-all-header">
+        <span>All Chats</span>
+        <button id="closeAllChats" type="button" aria-label="Close chats" style="background:none;border:none;color:white;cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="chatAllList" class="chat-all-list"></div>
+</div> 
 
 <script>
     // ==========================================
@@ -424,7 +448,8 @@
      if (!isLoggedIn()) {
          if(els.lockModal) els.lockModal.style.display = 'flex';
      } else {
-         window.location.href = "/create-listing";
+         const section = document.getElementById("listings-section");
+         if (section) section.scrollIntoView({ behavior: "smooth" });
      }
  }
 
@@ -433,6 +458,7 @@
          localStorage.removeItem(TOKEN_KEY);
          sessionStorage.clear();
          if(eventSource) eventSource.close();
+         localStorage.removeItem('used_role');
          window.location.reload();
      }
  }
@@ -759,5 +785,6 @@
 <script th:src="@{/js/app-errors.js}"></script>
 <script th:src="@{/js/navbar.js}"></script>
 <script th:src="@{/js/cod-ping.js}"></script>
+<script th:src="@{/js/chat.js}"></script>
 </body>
 </html>

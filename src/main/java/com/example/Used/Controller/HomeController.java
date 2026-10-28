@@ -50,4 +50,33 @@ public class HomeController {
         // The page polls /api/payments/{id}; data is loaded by JS.
         return "payment";
     }
+
+    // ==========================================
+    // ADMIN PORTAL (HTML pages only - the /api/admin/**
+    // endpoints remain protected by Spring Security)
+    // ==========================================
+    @GetMapping("/admin")
+    public String adminDashboardPage() {
+        return "admin";
+    }
+
+    @GetMapping("/admin/users")
+    public String adminUsersPage() {
+        return "admin-users";
+    }
+
+    @GetMapping("/admin/listings")
+    public String adminListingsPage() {
+        return "admin-listings";
+    }
+
+    @GetMapping("/admin/reports")
+    public String adminReportsPage() {
+        return "admin-reports";
+    }
+
+    @GetMapping("/favorites")
+    public String favoritesPage() {
+        return "favorites";
+    }
 }

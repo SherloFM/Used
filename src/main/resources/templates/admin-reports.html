@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Admin Portal</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="admin-shell">
+    <div class="admin-sidebar-slot"></div>
+
+    <main class="admin-main">
+        <div class="admin-topbar">
+            <h1>Reports</h1>
+            <div class="admin-user">Signed in as <b data-admin-username>--</b></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <h2><i class="fas fa-flag" style="color:#a06cd5;"></i> Report queue</h2>
+                <div class="filter-row">
+                    <label>Status</label>
+                    <select id="statusFilter">
+                        <option value="">All</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="UNDER_REVIEW">Under review</option>
+                        <option value="DISMISSED">Dismissed</option>
+                        <option value="ACTION_TAKEN">Action taken</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel-body" id="reportsBox">
+                <div class="state-box"><i class="fas fa-spinner spinner"></i><p>Loading reports...</p></div>
+            </div>
+            <div class="panel-body" style="border-top: 1px solid var(--border); display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button class="btn btn-outline btn-sm" id="prevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
+                <span class="muted" id="pageInfo" style="align-self:center;">Page 1</span>
+                <button class="btn btn-outline btn-sm" id="nextBtn">Next <i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <!-- REPORT REVIEW PANEL -->
+        <div class="panel" id="reportPanel" style="display:none;">
+            <div class="panel-head">
+                <h2><i class="fas fa-clipboard-check" style="color:#a06cd5;"></i> Review report <span id="reportPanelTitle"></span></h2>
+                <button class="btn btn-ghost btn-sm" onclick="closeReportPanel()"><i class="fas fa-times"></i> Close</button>
+            </div>
+            <div class="panel-body" id="reportPanelBox"></div>
+        </div>
+    </main>
+</div>
+
+<script th:src="@{/js/admin-common.js}"></script>
+<script>
+    let currentPage = 0;
+
+    async function loadReports() {
+        const box = document.getElementById('reportsBox');
+        showSpinner(box, 'Loading reports...');
+        try {
+            const status = document.getElementById('statusFilter').value;
+            const url = '/api/admin/reports?page=' + currentPage + '&size=10' +
+                (status ? '&status=' + status : '');
+            const page = await adminFetch(url);
+
+            if (page.content.length === 0) { showEmpty(box, 'No reports for this filter.'); }
+
+            box.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
+                '<th>#</th><th>Listing</th><th>Reporter</th><th>Reason</th><th>Status</th><th>Received</th><th>Actions</th></tr></thead><tbody>' +
+                page.content.map(report =>
+                    '<tr>' +
+                    '<td class="muted">#' + report.id + '</td>' +
+                    '<td><b>' + escapeHtml(report.listingTitle) + '</b> <span class="muted">(#' + report.listingId + ')</span></td>' +
+                    '<td>' + escapeHtml(report.reporterUsername || '--') + '</td>' +
+                    '<td>' + humanize(report.reason) + '</td>' +
+                    '<td>' + statusBadge(report.status) + '</td>' +
+                    '<td class="muted">' + fmtDate(report.createdAt) + '</td>' +
+                    '<td class="actions">' +
+                        '<button class="btn btn-sm" onclick="openReportPanel(' + report.id + ')"><i class="fas fa-eye"></i> Review</button>' +
+                    '</td>' +
+                    '</tr>').join('') + '</tbody></table></div>';
+
+            document.getElementById('pageInfo').textContent =
+                'Page ' + (page.totalPages > 0 ? page.number + 1 : 0) + ' of ' + page.totalPages;
+            document.getElementById('prevBtn').disabled = page.first;
+            document.getElementById('nextBtn').disabled = page.last;
+        } catch (err) {
+            showError(box, err.message);
+        }
+    }
+
+    async function openReportPanel(reportId) {
+        const panel = document.getElementById('reportPanel');
+        const box = document.getElementById('reportPanelBox');
+        panel.style.display = 'block';
+        showSpinner(box, 'Loading report...');
+
+        try {
+            const report = await adminFetch('/api/admin/reports/' + reportId);
+            document.getElementById('reportPanelTitle').textContent = '#' + report.id;
+            renderReport(report);
+
+            // History of previous reports for the same listing
+            const history = await adminFetch('/api/admin/reports/listing/' + report.listingId);
+            const historyBox = document.getElementById('historyBox');
+            if (history.length <= 1) {
+                historyBox.innerHTML = '<p class="muted">This is the first report for this listing.</p>';
+            } else {
+                historyBox.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
+                    '<th>#</th><th>Reporter</th><th>Reason</th><th>Status</th><th>Received</th></tr></thead><tbody>' +
+                    history.map(item =>
+                        '<tr>' +
+                        '<td class="muted">#' + item.id + (item.id === report.id ? ' <b>(this one)</b>' : '') + '</td>' +
+                        '<td>' + escapeHtml(item.reporterUsername || '--') + '</td>' +
+                        '<td>' + humanize(item.reason) + '</td>' +
+                        '<td>' + statusBadge(item.status) + '</td>' +
+                        '<td class="muted">' + fmtDate(item.createdAt) + '</td>' +
+                        '</tr>').join('') + '</tbody></table></div>';
+            }
+
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } catch (err) {
+            showError(box, err.message);
+        }
+    }
+
+    function renderReport(report) {
+        const box = document.getElementById('reportPanelBox');
+        const reviewable = report.status === 'PENDING' || report.status === 'UNDER_REVIEW';
+
+        box.innerHTML =
+            '<dl class="detail-grid-2">' +
+                '<dt>Listing</dt><dd><b>' + escapeHtml(report.listingTitle) + '</b> (#' + report.listingId + ')</dd>' +
+                '<dt>Reporter</dt><dd>' + escapeHtml(report.reporterUsername || '--') + ' (user #' + report.reporterId + ')</dd>' +
+                '<dt>Reason</dt><dd>' + humanize(report.reason) + '</dd>' +
+                '<dt>Description</dt><dd class="pre">' + escapeHtml(report.description || '--') + '</dd>' +
+                '<dt>Status</dt><dd>' + statusBadge(report.status) + '</dd>' +
+                '<dt>Received</dt><dd>' + fmtDate(report.createdAt) + '</dd>' +
+                '<dt>Resolved</dt><dd>' + (report.resolvedAt ? fmtDate(report.resolvedAt) : 'Not resolved yet') + '</dd>' +
+                (report.status === 'DISMISSED' || report.status === 'ACTION_TAKEN'
+                    ? '<dt>Admin notes</dt><dd class="pre">' + escapeHtml(report.adminNotes || '--') + '</dd>'
+                    : '') +
+            '</dl>' +
+
+            (reviewable
+                ? '<div class="mt-2" style="border-top:1px solid var(--border); padding-top:1.2rem;">' +
+                    '<h2 style="font-size:1rem; margin-bottom:0.8rem;">Take a decision</h2>' +
+                    (report.status === 'PENDING'
+                        ? '<button class="btn btn-outline" id="reviewBtn" onclick="markUnderReview(' + report.id + ')"><i class="fas fa-play"></i> Mark as under review</button>'
+                        : '') +
+                    '<div class="mt-1">' +
+                        '<label style="font-size:0.85rem; color:#8a94a6; font-weight:600;">Internal notes (visible to admins only)</label>' +
+                        '<textarea id="adminNotesInput" placeholder="Why is this dismissed / what action was taken?"></textarea>' +
+                    '</div>' +
+                    '<div class="mt-1" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">' +
+                        '<button class="btn btn-green" onclick="resolveReport(' + report.id + ', \'DISMISS\')"><i class="fas fa-check"></i> Dismiss report</button>' +
+                        '<button class="btn btn-red" onclick="resolveReport(' + report.id + ', \'ACTION\')"><i class="fas fa-gavel"></i> Take action</button>' +
+                        '<label style="font-size:0.9rem;"><input type="checkbox" id="delistCheckbox" style="margin-right:6px;">Also delist the listing (emails the seller)</label>' +
+                    '</div>' +
+                  '</div>'
+                : '<p class="muted mt-1"><i class="fas fa-lock"></i> This report is already resolved.</p>') +
+
+            '<div class="mt-2" style="border-top:1px solid var(--border); padding-top:1.2rem;">' +
+                '<h2 style="font-size:1rem; margin-bottom:0.8rem;">Previous reports for this listing</h2>' +
+                '<div id="historyBox" class="muted">Loading history...</div>' +
+                '<div class="mt-1">' +
+                    '<button class="btn btn-ghost btn-sm" onclick="viewOnSite(' + report.listingId + ')"><i class="fas fa-external-link-alt"></i> View listing on the site</button>' +
+                    '<button class="btn btn-ghost btn-sm" style="margin-left:6px;" onclick="goToListingReports(' + report.listingId + ')"><i class="fas fa-list"></i> All listings view</button>' +
+                '</div>' +
+            '</div>';
+    }
+
+    async function markUnderReview(reportId) {
+        try {
+            const updated = await adminFetch('/api/admin/reports/' + reportId + '/status', { method: 'PUT' });
+            adminToast('Report moved to under review.', 'success');
+            renderReport(updated);
+            loadReports();
+        } catch (err) {
+            adminToast(err.message, 'error');
+        }
+    }
+
+    async function resolveReport(reportId, decision) {
+        if (decision === 'ACTION' && !confirm('This records ACTION_TAKEN against the listing and may delist it and email the seller. Continue?')) return;
+        const body = {
+            decision: decision === 'DISMISS' ? 'DISMISSED' : 'ACTION_TAKEN',
+            adminNotes: document.getElementById('adminNotesInput') !== null
+                ? document.getElementById('adminNotesInput').value
+                : null,
+            delistListing: decision === 'ACTION'
+                && document.getElementById('delistCheckbox') !== null
+                && document.getElementById('delistCheckbox').checked
+        };
+        if (decision === 'DISMISS' && !body.adminNotes) {
+            body.adminNotes = null; // optional
+        }
+        try {
+            const updated = await adminFetch('/api/admin/reports/' + reportId + '/resolve', {
+                method: 'PUT',
+                body: JSON.stringify(body)
+            });
+            adminToast('Report resolved: ' + updated.status, 'success');
+            renderReport(updated);
+            loadReports();
+        } catch (err) {
+            adminToast(err.message, 'error');
+        }
+    }
+
+    function closeReportPanel() {
+        document.getElementById('reportPanel').style.display = 'none';
+    }
+
+    function viewOnSite(listingId) {
+        window.open('/listing/' + listingId, '_blank');
+    }
+
+    function goToListingReports(listingId) {
+        document.getElementById('statusFilter').value = '';
+        currentPage = 0;
+        loadReports().then(() => closeReportPanel());
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadReports(); // fetch the report queue immediately
+        document.getElementById('statusFilter').addEventListener('change', () => {
+            currentPage = 0;
+            loadReports();
+        });
+        document.getElementById('prevBtn').addEventListener('click', () => { currentPage--; loadReports(); });
+        document.getElementById('nextBtn').addEventListener('click', () => { currentPage++; loadReports(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeReportPanel(); });
+    });
+</script>
+</body>
+</html>

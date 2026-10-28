@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listings - Admin Portal</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="admin-shell">
+    <div class="admin-sidebar-slot"></div>
+
+    <main class="admin-main">
+        <div class="admin-topbar">
+            <h1>Listings</h1>
+            <div class="admin-user">Signed in as <b data-admin-username>--</b></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <h2><i class="fas fa-box" style="color:#2c3e50;"></i> All listings</h2>
+                <div class="filter-row">
+                    <label>Status</label>
+                    <select id="statusFilter">
+                        <option value="">All</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="SOLD">Sold</option>
+                        <option value="DELISTED">Delisted</option>
+                    </select>
+                    <input type="text" id="listingSearch" placeholder="Search title...">
+                </div>
+            </div>
+            <div class="panel-body" id="listingsBox">
+                <div class="state-box"><i class="fas fa-spinner spinner"></i><p>Loading listings...</p></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script th:src="@{/js/admin-common.js}"></script>
+<script>
+    let allListings = [];
+
+    async function loadListings() {
+        const box = document.getElementById('listingsBox');
+        showSpinner(box, 'Loading listings...');
+        try {
+            allListings = await adminFetch('/api/listings');
+            allListings.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            renderListings();
+        } catch (err) {
+            showError(box, err.message);
+        }
+    }
+
+    function renderListings() {
+        const box = document.getElementById('listingsBox');
+        const status = document.getElementById('statusFilter').value;
+        const search = (document.getElementById('listingSearch').value || '').toLowerCase();
+
+        const filtered = allListings.filter(listing =>
+            (!status || listing.status === status) &&
+            (!search || (listing.title || '').toLowerCase().includes(search)));
+
+        if (filtered.length === 0) { showEmpty(box, 'No listings match these filters.'); return; }
+
+        box.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
+            '<th>#</th><th>Title</th><th>Price</th><th>Condition</th><th>Status</th><th>Posted</th><th>Actions</th></tr></thead><tbody>' +
+            filtered.map(listing =>
+                '<tr>' +
+                '<td class="muted">#' + listing.id + '</td>' +
+                '<td><b>' + escapeHtml(listing.title || '--') + '</b></td>' +
+                '<td>$' + Number(listing.price).toFixed(2) + '</td>' +
+                '<td>' + escapeHtml(listing.condition || '--') + '</td>' +
+                '<td>' + statusBadge(listing.status) + '</td>' +
+                '<td class="muted">' + fmtDate(listing.createdAt) + '</td>' +
+                '<td class="actions">' +
+                    (listing.status !== 'SOLD' && listing.status !== 'DELISTED'
+                        ? '<button class="btn btn-red btn-sm" onclick="removeListing(' + listing.id + ', \'' + escapeHtml(listing.title || '') + '\', this)"><i class="fas fa-ban"></i> Remove</button>'
+                        : '') +
+                    '<button class="btn btn-ghost btn-sm" onclick="viewOnSite(' + listing.id + ')"><i class="fas fa-external-link-alt"></i> View</button>' +
+                '</td>' +
+                '</tr>').join('') + '</tbody></table></div>';
+    }
+
+    async function removeListing(listingId, title, button) {
+        if (!confirm('Remove listing "' + title + '" (#' + listingId + ')?\n' +
+                'The seller will be notified by email. Sold listings cannot be removed.')) return;
+        if (button) { button.disabled = true; button.textContent = 'Removing...'; }
+        try {
+            await adminFetch('/api/listings/admin/' + listingId, { method: 'DELETE' });
+            adminToast('Listing removed. The seller has been notified.', 'success');
+            loadListings();
+        } catch (err) {
+            adminToast(err.message, 'error');
+            loadListings();
+        }
+    }
+
+    function viewOnSite(listingId) {
+        window.open('/listing/' + listingId, '_blank');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadListings(); // fetch all listings immediately
+        document.getElementById('statusFilter').addEventListener('change', renderListings);
+        document.getElementById('listingSearch').addEventListener('input', renderListings);
+    });
+</script>
+</body>
+</html>

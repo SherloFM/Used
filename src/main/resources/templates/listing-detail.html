@@ -125,8 +125,32 @@
         /* Loading/Error States */
         #loadingState, #errorState { text-align: center; padding: 4rem; color: #888; }
         .spinner { font-size: 3rem; color: #a06cd5; animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin { 100% { transform: rotate(360deg); }}
 
+        .chat-toggle {
+            position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px;
+            border-radius: 50%; background: linear-gradient(90deg,#6ec3f4,#a06cd5);
+            color: white; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000;
+        }
+        .chat-box {
+            position: fixed; bottom: 90px; right: 20px; width: 320px; height: 400px;
+            background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none; flex-direction: column; z-index: 10000; overflow: hidden;
+        }
+        .chat-header { background: linear-gradient(90deg,#6ec3f4,#a06cd5); color: white; padding: 10px; display:flex; justify-content:space-between; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 10px; background: #f9f9f9; }
+        .chat-msg { margin: 6px 0; max-width: 80%; padding: 8px 10px; border-radius: 10px; }
+        .chat-msg.mine { background: #a06cd5; color: white; margin-left: auto; }
+        .chat-msg.other { background: #e5e7eb; color: #333; }
+        .chat-input { display:flex; border-top:1px solid #eee; }
+        .chat-input input { flex:1; border:none; padding:10px; }
+        .chat-input button { border:none; background:#a06cd5; color:white; padding:0 16px; }
+        .chat-notice { padding:16px; color:#777; text-align:center; }
+        @media (max-width: 420px) {
+            .chat-box { width: calc(100vw - 32px); right: 16px; height: min(400px, 65vh); }
+            .chat-toggle { right: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -172,7 +196,13 @@
         <div class="right-col">
             <div>
                 <span id="statusBadge" class="status-badge status-active">Active</span>
-                <h1 class="item-title" id="itemTitle">Item Title</h1>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <h1 class="item-title" id="itemTitle" style="flex:1;">Item Title</h1>
+                    <button id="favBtn" type="button" onclick="toggleFavorite()" title="Save to favorites"
+                            style="background:none;border:none;font-size:1.6rem;cursor:pointer;color:#ccc;transition:color 0.2s,transform 0.2s;">
+                        <i class="far fa-star"></i>
+                    </button>
+                </div>
                 <div class="price-tag" id="itemPrice">$0.00</div>
             </div>
 
@@ -202,6 +232,21 @@
             <button id="buyBtn" class="btn-buy" onclick="handlePurchase()">
                 <i class="fas fa-shopping-cart"></i> Buy Now
             </button>
+            <button id="reportBtn" type="button" onclick="openReportModal()" style="margin-top:0.5rem; width:100%; padding:10px; background:transparent; border:1.5px solid #e74c3c; color:#e74c3c; border-radius:8px; font-weight:600; cursor:pointer;">
+                <i class="fas fa-flag"></i> Report this listing
+            </button>
+            <button id="chatToggle" class="chat-toggle" type="button" aria-label="Contact seller"><i class="fas fa-comments"></i></button>
+            <div id="chatBox" class="chat-box">
+                <div class="chat-header">
+                    <span id="chatTitle">Chat</span>
+                    <button id="closeChat" type="button" aria-label="Close chat" style="background:none;border:none;color:white;cursor:pointer;"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input">
+                    <input id="chatInput" placeholder="Type a message..." />
+                    <button id="sendChat" type="button" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -289,22 +334,160 @@
         }
 
         // 3. Seller Info
-        // Assuming your Listings DTO returns nested user info or just userId.
-        // If it returns full User object:
-        if (data.user) {
-            document.getElementById('sellerName').textContent = data.user.username || data.user.email;
-            // Generate initials for avatar
-            const name = data.user.username || "?";
+        // Backend exposes the seller under "seller" (safe subset; "user" is @JsonIgnore'd).
+        const seller = data.seller || data.user;
+        if (seller) {
+            document.getElementById('sellerName').textContent = seller.username || seller.email || "Member";
+            const name = seller.username || "?";
             const initials = name.substring(0, 2).toUpperCase();
             document.getElementById('sellerAvatar').textContent = initials;
         } else {
-            // Fallback if only ID is returned
             document.getElementById('sellerName').textContent = "Member #" + (data.userId || '?');
             document.getElementById('sellerAvatar').textContent = "?";
         }
 
         // Show Content
         contentEl.style.display = 'grid';
+
+        // Check favorite status for logged-in users
+        checkFavoriteStatus();
+    }
+
+    async function checkFavoriteStatus() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        const btn = document.getElementById('favBtn');
+        if (!token || !currentListingId) { if (btn) btn.style.display = 'none'; return; }
+        try {
+            const res = await fetch('/api/favorites/' + currentListingId + '/check', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!res.ok) { if (btn) btn.style.display = 'none'; return; }
+            const data = await res.json();
+            setFavoriteVisual(!!data.favorited);
+        } catch (e) {
+            if (btn) btn.style.display = 'none';
+        }
+    }
+
+    function setFavoriteVisual(filled) {
+        const btn = document.getElementById('favBtn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        if (filled) {
+            icon.className = 'fas fa-star';
+            btn.style.color = '#f1c40f';
+        } else {
+            icon.className = 'far fa-star';
+            btn.style.color = '#ccc';
+        }
+        btn.dataset.filled = filled ? '1' : '0';
+    }
+
+    async function toggleFavorite() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) {
+            if (window.AppErrors) AppErrors.showToast('Please log in to save favorites.', true); else alert('Please log in to save favorites.');
+            window.location.href = '/login';
+            return;
+        }
+        const btn = document.getElementById('favBtn');
+        const filled = btn.dataset.filled === '1';
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/favorites/' + currentListingId, {
+                method: filled ? 'DELETE' : 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok || res.status === 204) {
+                setFavoriteVisual(!filled);
+                if (window.AppErrors) AppErrors.showToast(filled ? 'Removed from favorites.' : 'Added to favorites!', false);
+            } else {
+                let msg = 'Failed to update favorite.';
+                try { const b = await res.json(); if (b && b.message) msg = b.message; } catch (e) {}
+                if (res.status === 401 || res.status === 403) window.location.href = '/login';
+                else if (window.AppErrors) AppErrors.showToast(msg, true); else alert(msg);
+            }
+        } catch (err) {
+            if (window.AppErrors) AppErrors.showToast('Network error. Please try again.', true); else alert('Network error.');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ==========================================
+    // REPORT LISTING
+    // ==========================================
+    function openReportModal() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) {
+            if (window.AppErrors) AppErrors.showToast("Please log in to report a listing.", true); else alert("Please log in to report a listing.");
+            window.location.href = '/login';
+            return;
+        }
+        // Don't let the seller report their own listing
+        if (listingData && listingData.user && listingData.user.id) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.userId && payload.userId === listingData.user.id) {
+                    if (window.AppErrors) AppErrors.showToast("You can't report your own listing.", true); else alert("You can't report your own listing.");
+                    return;
+                }
+            } catch (e) { /* ignore token parse errors */ }
+        }
+        document.getElementById('reportModal').style.display = 'flex';
+    }
+
+    function closeReportModal() {
+        document.getElementById('reportModal').style.display = 'none';
+        document.getElementById('reportDesc').value = '';
+        document.getElementById('reportReason').value = 'SUSPECTED_SCAM';
+        document.getElementById('reportMsg').style.display = 'none';
+    }
+
+    async function submitReport() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) { window.location.href = '/login'; return; }
+
+        const reason = document.getElementById('reportReason').value;
+        const description = document.getElementById('reportDesc').value.trim();
+        const msgEl = document.getElementById('reportMsg');
+        const btn = document.getElementById('submitReportBtn');
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        try {
+            const res = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ listingId: currentListingId, reason, description: description || null })
+            });
+
+            if (res.ok) {
+                msgEl.textContent = 'Report submitted. Our team will review it shortly.';
+                msgEl.style.background = '#eafaf1'; msgEl.style.color = '#27ae60';
+                msgEl.style.display = 'block';
+                setTimeout(closeReportModal, 1800);
+            } else {
+                let message = 'Failed to submit report.';
+                try { const body = await res.json(); if (body && body.message) message = body.message; } catch (e) {}
+                if (res.status === 401 || res.status === 403) {
+                    if (window.AppErrors) AppErrors.showToast("Please log in to report a listing.", true); else alert("Please log in to report a listing.");
+                    window.location.href = '/login';
+                    return;
+                }
+                msgEl.textContent = message;
+                msgEl.style.background = '#fdecea'; msgEl.style.color = '#c0392b';
+                msgEl.style.display = 'block';
+            }
+        } catch (err) {
+            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.style.background = '#fdecea'; msgEl.style.color = '#c0392b';
+            msgEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Submit Report';
+        }
     }
 
     function showError(msg) {
@@ -334,12 +517,44 @@
         window.location.href = '/payment/' + currentListingId;
     }
 </script>
+</div>
 
+<!-- REPORT LISTING MODAL -->
+<div id="reportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10002; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; padding:1.5rem; width:90%; max-width:460px; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:#2c3e50;"><i class="fas fa-flag" style="color:#e74c3c;"></i> Report this listing</h3>
+            <button onclick="closeReportModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#888;"><i class="fas fa-times"></i></button>
+        </div>
+        <p style="color:#888; font-size:0.9rem; margin-bottom:1rem;">Tell us what's wrong with this listing. Our team will review it.</p>
+        <div style="margin-bottom:1rem;">
+            <label style="display:block; font-size:0.85rem; font-weight:600; color:#555; margin-bottom:0.4rem;">Reason</label>
+            <select id="reportReason" style="width:100%; padding:0.6rem; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+                <option value="MISLEADING_LISTING">Misleading listing</option>
+                <option value="PROHIBITED_ITEM">Prohibited item</option>
+                <option value="SUSPECTED_SCAM" selected>Suspected scam</option>
+                <option value="INAPPROPRIATE_CONTENT">Inappropriate content</option>
+                <option value="DUPLICATE_LISTING">Duplicate listing</option>
+                <option value="INCORRECT_INFORMATION">Incorrect information</option>
+                <option value="OTHER">Other</option>
+            </select>
+        </div>
+        <div style="margin-bottom:1rem;">
+            <label style="display:block; font-size:0.85rem; font-weight:600; color:#555; margin-bottom:0.4rem;">Description (optional)</label>
+            <textarea id="reportDesc" rows="4" maxlength="1000" placeholder="Add any details that help us investigate..." style="width:100%; padding:0.6rem; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; resize:vertical; box-sizing:border-box;"></textarea>
+        </div>
+        <div id="reportMsg" style="display:none; padding:0.6rem 0.8rem; border-radius:8px; font-size:0.9rem; margin-bottom:1rem;"></div>
+        <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
+            <button onclick="closeReportModal()" style="padding:0.6rem 1.2rem; background:#eee; border:none; border-radius:8px; cursor:pointer; font-weight:600;">Cancel</button>
+            <button id="submitReportBtn" onclick="submitReport()" style="padding:0.6rem 1.2rem; background:#e74c3c; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600;">Submit Report</button>
+        </div>
+    </div>
 </div>
 
 <script src="/js/app-errors.js"></script>
 <script th:src="@{/js/navbar.js}"></script>
 <script th:src="@{/js/cod-ping.js}"></script>
+<script th:src="@{/js/chat.js}"></script>
 
 </body>
 </html>

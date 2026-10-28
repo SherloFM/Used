@@ -209,7 +209,7 @@ public class UserService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             myUserDetails = (MyUserDetails) authentication.getPrincipal();
             final String JWT = jwtUtilities.generateJWTtoken(myUserDetails);
-            return ResponseEntity.ok(new LoginResponses(JWT));
+            return ResponseEntity.ok(new LoginResponses(JWT, user.getRole().name()));
         } catch (Exception e) {
             loginRateLimiter.recordFailedAttempt(email);
             return ResponseEntity

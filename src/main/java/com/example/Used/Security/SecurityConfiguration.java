@@ -74,6 +74,9 @@ public class SecurityConfiguration {
                                 "/forgot-password",
                                 "/payment/**",
                                 "/listing/**",
+                                "/favorites",
+                                "/admin",
+                                "/admin/**",
                                 "/css/**", "/js/**",
                                 "/images/**",
                                 "/favicon.ico", "/error"

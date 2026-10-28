@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Users - Admin Portal</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="admin-shell">
+    <div class="admin-sidebar-slot"></div>
+
+    <main class="admin-main">
+        <div class="admin-topbar">
+            <h1>Users</h1>
+            <div class="admin-user">Signed in as <b data-admin-username>--</b></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <h2><i class="fas fa-users" style="color:#a06cd5;"></i> All members</h2>
+                <div class="filter-row">
+                    <input type="text" id="userSearch" placeholder="Search name / email / role...">
+                </div>
+            </div>
+            <div class="panel-body" id="usersBox">
+                <div class="state-box"><i class="fas fa-spinner spinner"></i><p>Loading users...</p></div>
+            </div>
+        </div>
+
+        <!-- USER DETAIL PANEL -->
+        <div class="panel" id="userDetailPanel" style="display:none;">
+            <div class="panel-head">
+                <h2><i class="fas fa-id-card" style="color:#6ec3f4;"></i> User detail</h2>
+                <button class="btn btn-ghost btn-sm" onclick="closeUserDetail()"><i class="fas fa-times"></i> Close</button>
+            </div>
+            <div class="panel-body" id="userDetailBox"></div>
+        </div>
+    </main>
+</div>
+
+<script th:src="@{/js/admin-common.js}"></script>
+<script>
+    let allUsers = [];
+
+    async function loadUsers() {
+        const box = document.getElementById('usersBox');
+        showSpinner(box, 'Loading users...');
+        try {
+            allUsers = await adminFetch('/api/admin/users');
+            renderUsers(allUsers);
+        } catch (err) {
+            showError(box, err.message);
+        }
+    }
+
+    function renderUsers(users) {
+        const box = document.getElementById('usersBox');
+        const search = (document.getElementById('userSearch').value || '').toLowerCase();
+        const filtered = users.filter(user =>
+            !search ||
+            (user.username || '').toLowerCase().includes(search) ||
+            (user.email || '').toLowerCase().includes(search) ||
+            (user.role || '').toLowerCase().includes(search));
+
+        if (filtered.length === 0) { showEmpty(box, 'No users match your search.'); return; }
+
+        box.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
+            '<th>#</th><th>Username</th><th>Email</th><th>Role</th><th>Flags</th><th>Joined</th><th>Actions</th></tr></thead><tbody>' +
+            filtered.map(user => {
+                const isBanned = !!user.isBanned;
+                const isAdmin = user.role === 'ADMIN';
+                return '<tr>' +
+                    '<td class="muted">#' + user.id + '</td>' +
+                    '<td><b>' + escapeHtml(user.username || '--') + '</b></td>' +
+                    '<td>' + escapeHtml(user.email || '--') + '</td>' +
+                    '<td>' + statusBadge(user.role) + '</td>' +
+                    '<td>' + (isBanned ? statusBadge('BANNED') : '') +
+                              (user.emailVerified ? '<span class="badge b-active">Verified</span>' : '<span class="badge b-pending">Unverified</span>') +
+                    '</td>' +
+                    '<td class="muted">' + fmtDate(user.createdAt) + '</td>' +
+                    '<td class="actions">' +
+                        '<button class="btn btn-ghost btn-sm" onclick="openUserDetail(' + user.id + ')"><i class="fas fa-eye"></i> View</button>' +
+                        (isBanned
+                            ? '<button class="btn btn-green btn-sm" onclick="setBan(' + user.id + ', false)"><i class="fas fa-unlock"></i> Unban</button>'
+                            : '<button class="btn btn-orange btn-sm" onclick="setBan(' + user.id + ', true)"><i class="fas fa-gavel"></i> Ban</button>') +
+                        '<button class="btn btn-red btn-sm" onclick="deleteUser(' + user.id + ', \'' + escapeHtml(user.username || '') + '\')"><i class="fas fa-trash"></i> Delete</button>' +
+                    '</td>' +
+                    '</tr>';
+            }).join('') + '</tbody></table></div>';
+    }
+
+    async function openUserDetail(userId) {
+        const panel = document.getElementById('userDetailPanel');
+        const box = document.getElementById('userDetailBox');
+        panel.style.display = 'block';
+        showSpinner(box, 'Loading detail...');
+        try {
+            const user = await adminFetch('/api/admin/users/' + userId);
+            const profile = user.userProfile || {};
+            box.innerHTML = '<dl class="detail-grid-2">' +
+                '<dt>User</dt><dd>#' + user.id + ' — <b>' + escapeHtml(user.username || '--') + '</b></dd>' +
+                '<dt>Email</dt><dd>' + escapeHtml(user.email || '--') + '</dd>' +
+                '<dt>Role</dt><dd>' + statusBadge(user.role) + '</dd>' +
+                '<dt>Status</dt><dd>' + (user.isBanned ? statusBadge('BANNED') : statusBadge('ACTIVE')) +
+                    ' · ' + (user.emailVerified ? 'Email verified' : 'NOT verified') + '</dd>' +
+                '<dt>Name</dt><dd>' + escapeHtml((profile.firstName || '') + ' ' + (profile.lastName || '')) + '</dd>' +
+                '<dt>Phone</dt><dd>' + escapeHtml(profile.phoneNumber || '--') + '</dd>' +
+                '<dt>Bio</dt><dd class="pre">' + escapeHtml(profile.profileBio || '--') + '</dd>' +
+                '<dt>Member since</dt><dd>' + fmtDate(user.createdAt) + '</dd>' +
+                '</dl>';
+            panel.scrollIntoView({ behavior: 'smooth' });
+        } catch (err) {
+            showError(box, err.message);
+        }
+    }
+
+    function closeUserDetail() {
+        document.getElementById('userDetailPanel').style.display = 'none';
+    }
+
+    async function setBan(userId, ban) {
+        const verb = ban ? 'BAN' : 'UNBAN';
+        if (!confirm('Are you sure you want to ' + verb + ' user #' + userId + '?')) return;
+        try {
+            await adminFetch('/api/admin/users/' + userId + '/' + (ban ? 'ban' : 'unban'), { method: 'PUT' });
+            adminToast('User ' + (ban ? 'banned' : 'unbanned') + ' successfully.', 'success');
+            loadUsers();
+        } catch (err) {
+            adminToast(err.message, 'error');
+        }
+    }
+
+    async function deleteUser(userId, username) {
+        if (!confirm('DELETE user ' + username + ' (#' + userId + ')? This cannot be undone.')) return;
+        try {
+            await adminFetch('/api/admin/users/' + userId, { method: 'DELETE' });
+            adminToast('User deleted.', 'success');
+            closeUserDetail();
+            loadUsers();
+        } catch (err) {
+            adminToast(err.message, 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUsers(); // load the table immediately, then keep the search filter reactive
+        document.getElementById('userSearch').addEventListener('input', () => renderUsers(allUsers));
+    });
+</script>
+</body>
+</html>

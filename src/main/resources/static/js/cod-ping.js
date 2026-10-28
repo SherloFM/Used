@@ -12,7 +12,7 @@
             container = document.createElement('div');
             container.id = 'codPingContainer';
             container.style.cssText =
-                'position:fixed;right:20px;bottom:20px;z-index:10000;' +
+                'position:fixed;right:20px;bottom:100px;z-index:10000;' +
                 'display:flex;flex-direction:column;gap:10px;max-width:380px;';
             document.body.appendChild(container);
         }

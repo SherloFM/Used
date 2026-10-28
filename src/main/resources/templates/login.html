@@ -273,13 +273,18 @@
 
             if (res.ok) {
                 const data = await res.json();
-                // Your backend returns { "message": "<JWT_TOKEN>" }
+                // Your backend returns { "message": "<JWT_TOKEN>", "role": "ADMIN"|"USER" }
                 const token = data.message;
 
                 if (token) {
                     localStorage.setItem('used_jwt_token', token);
+                    // Remember the role so every page can route correctly
+                    localStorage.setItem('used_role', data.role || 'USER');
                     showMessage('loginMsg', 'Success! Redirecting...', 'success');
-                    setTimeout(() => window.location.href = '/', 1000);
+                    setTimeout(() => {
+                        // Route by role: admins go to the portal, users to the marketplace
+                        window.location.href = (data.role === 'ADMIN') ? '/admin' : '/';
+                    }, 1000);
                 } else {
                     throw new Error("Token missing in response");
                 }

@@ -33,6 +33,7 @@ public class ListingService {
     private final ListingRepository listingsRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
+    private final FavoriteService favoriteService;
     public final CategoryRepository categoryRepository;
 
     @Autowired
@@ -41,13 +42,15 @@ public class ListingService {
             CurrentUserService currentUserService,
             EmailServices emailServices,
             AuditLogService auditLogService,
-            CategoryRepository categoryRepository
+            CategoryRepository categoryRepository,
+            FavoriteService favoriteService
     ) {
         this.listingsRepository = listingsRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
         this.auditLogService = auditLogService;
         this.categoryRepository = categoryRepository;
+        this.favoriteService = favoriteService;
     }
 
     // CREATE LISTING
@@ -185,6 +188,9 @@ public class ListingService {
 
         listingsRepository.save(listing);
 
+        // Notify users who saved this listing, then drop their favorites
+        favoriteService.handleListingRemoved(id, "delisted");
+
         // AUDIT: listing delisted by owner
         auditLogService.log(
                 AuditLog.AuditAction.LISTING_DELISTED,
@@ -223,6 +229,9 @@ public class ListingService {
         listing.setStatus(Listings.Status.DELISTED);
 
         listingsRepository.save(listing);
+
+        // Notify users who saved this listing, then drop their favorites
+        favoriteService.handleListingRemoved(id, "delisted");
 
         // Notify owner
         emailServices.sendListingDeletedEmail(

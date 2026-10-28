@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Used Marketplace</title>
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="admin-shell">
+    <div class="admin-sidebar-slot"></div>
+
+    <main class="admin-main">
+        <div class="admin-topbar">
+            <h1>Dashboard</h1>
+            <div class="admin-user">Signed in as <b data-admin-username>--</b></div>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-icon si-blue"><i class="fas fa-users"></i></div><div><h3 id="statUsers">--</h3><p>Total Users</p></div></div>
+            <div class="stat-card"><div class="stat-icon si-red"><i class="fas fa-user-slash"></i></div><div><h3 id="statBanned">--</h3><p>Banned</p></div></div>
+            <div class="stat-card"><div class="stat-icon si-green"><i class="fas fa-box"></i></div><div><h3 id="statActive">--</h3><p>Active Listings</p></div></div>
+            <div class="stat-card"><div class="stat-icon si-orange"><i class="fas fa-flag"></i></div><div><h3 id="statPendingReports">--</h3><p>Pending Reports</p></div></div>
+            <div class="stat-card"><div class="stat-icon si-purple"><i class="fas fa-clipboard-check"></i></div><div><h3 id="statOpenReports">--</h3><p>In Review / Resolved</p></div></div>
+        </div>
+
+        <!-- PENDING REPORTS -->
+        <div class="panel">
+            <div class="panel-head">
+                <h2><i class="fas fa-flag" style="color:#a06cd5;"></i> Reports waiting for review</h2>
+                <a class="btn btn-sm" href="/admin/reports"><i class="fas fa-arrow-right"></i> Review all</a>
+            </div>
+            <div class="panel-body" id="pendingReportsBox">
+                <div class="state-box"><i class="fas fa-spinner spinner"></i><p>Loading...</p></div>
+            </div>
+        </div>
+
+        <!-- EVERY ADMIN CAPABILITY -->
+        <div class="stats-grid">
+            <div class="stat-card" onclick="location.href='/admin/users'" style="cursor:pointer;"><div class="stat-icon si-purple"><i class="fas fa-users-cog"></i></div><div><h3 style="font-size:1rem;">Users</h3><p>View · Ban · Unban · Delete</p></div></div>
+            <div class="stat-card" onclick="location.href='/admin/listings'" style="cursor:pointer;"><div class="stat-icon si-dark"><i class="fas fa-box"></i></div><div><h3 style="font-size:1rem;">Listings</h3><p>View all · Remove</p></div></div>
+            <div class="stat-card" onclick="location.href='/admin/reports'" style="cursor:pointer;"><div class="stat-icon si-orange"><i class="fas fa-flag"></i></div><div><h3 style="font-size:1rem;">Reports</h3><p>Review · Dismiss · Take action</p></div></div>
+        </div>
+    </main>
+</div>
+
+<script th:src="@{/js/admin-common.js}"></script>
+<script>
+    async function loadDashboard() {
+        const stats = {};
+        try {
+            // Users
+            const users = await adminFetch('/api/admin/users');
+            stats.users = users.length;
+            stats.banned = users.filter(user => user.isBanned).length;
+            document.getElementById('statUsers').textContent = stats.users;
+            document.getElementById('statBanned').textContent = stats.banned;
+
+            // Listings (all statuses)
+            const listings = await adminFetch('/api/listings');
+            const active = listings.filter(listing => listing.status === 'ACTIVE').length;
+            document.getElementById('statActive').textContent = active;
+
+            // Reports per status
+            document.getElementById('statPendingReports').textContent =
+                (await adminFetch('/api/admin/reports?status=PENDING&size=1')).totalElements;
+            document.getElementById('statOpenReports').textContent =
+                (await adminFetch('/api/admin/reports?size=1')).totalElements -
+                (await adminFetch('/api/admin/reports?status=PENDING&size=1')).totalElements;
+
+            // Recent pending reports table
+            const pendingPage = await adminFetch('/api/admin/reports?status=PENDING&size=5');
+            const box = document.getElementById('pendingReportsBox');
+            if (pendingPage.content.length === 0) {
+                showEmpty(box, 'No pending reports. Nothing to worry about.');
+            } else {
+                box.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr>' +
+                    '<th>#</th><th>Listing</th><th>Reporter</th><th>Reason</th><th>Status</th><th>Received</th></tr></thead><tbody>' +
+                    pendingPage.content.map(report =>
+                        '<tr>' +
+                        '<td class="muted">#' + report.id + '</td>' +
+                        '<td>' + escapeHtml(report.listingTitle) + ' <span class="muted">(#' + report.listingId + ')</span></td>' +
+                        '<td>' + escapeHtml(report.reporterUsername || '') + '</td>' +
+                        '<td>' + humanize(report.reason) + '</td>' +
+                        '<td>' + statusBadge(report.status) + '</td>' +
+                        '<td class="muted">' + fmtDate(report.createdAt) + '</td>' +
+                        '</tr>').join('') +
+                    '</tbody></table></div>';
+            }
+        } catch (err) {
+            showError(document.getElementById('pendingReportsBox'), err.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>

@@ -10,6 +10,7 @@ function getAuthHeaders() {
 
 function logoutUser() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('used_role');
     window.location.href = '/login';
 }
 

@@ -194,4 +194,23 @@ public class EmailServices {
 
         javaMailSender.send(message);
     }
+
+    public void sendListingUnavailableEmail(String email, String listingTitle, String reason) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject("Used - A Listing You Saved Is No Longer Available");
+
+        String status = reason.equalsIgnoreCase("sold")
+                ? "has been sold"
+                : "is no longer available";
+
+        message.setText(
+                "A listing you saved is no longer available.\n\n" +
+                        "Listing: " + listingTitle + "\n" +
+                        "Status: " + status + "\n\n" +
+                        "The listing has been removed from your favorites.\n\n" +
+                        "Thank you for using Used."
+        );
+        javaMailSender.send(message);
+    }
 }

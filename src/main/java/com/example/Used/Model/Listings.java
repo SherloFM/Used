@@ -1,6 +1,7 @@
 package com.example.Used.Model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -15,7 +16,9 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
@@ -84,6 +87,20 @@ public class Listings {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    /**
+     * Exposes a safe subset of the seller (no password etc.) under the
+     * "seller" JSON property, since "user" is @JsonIgnore'd above.
+     */
+    @JsonGetter("seller")
+    public Map<String, Object> getSellerSummary() {
+        if (user == null) return null;
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("id", user.getId());
+        summary.put("username", user.getUsername());
+        summary.put("email", user.getEmail());
+        return summary;
+    }
 
     @OneToMany(mappedBy = "listing")
     @JsonIgnore

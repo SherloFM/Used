@@ -26,6 +26,8 @@ public class ProfileResponse {
     public String imgtype;
     public BigDecimal walletBalance;
     public LocalDateTime createdAt;
+    /** "ADMIN" or "USER" — lets the frontend guard admin pages. */
+    public String role;
 
     public static ProfileResponse from(User user, UserProfile profile, BigDecimal walletBalance) {
         ProfileResponse response = new ProfileResponse();
@@ -34,6 +36,7 @@ public class ProfileResponse {
         response.email = user.getEmail();
         response.walletBalance = walletBalance;
         response.createdAt = user.getCreatedAt();
+        response.role = user.getRole() != null ? user.getRole().name() : null;
 
         if (profile != null) {
             response.firstName = profile.getFirstName();
