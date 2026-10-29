@@ -1,6 +1,6 @@
 # 🛒 Used Marketplace
 
-A modern, full-stack second-hand goods trading platform built with **Spring Boot 3**, **Thymeleaf**, and **PostgreSQL**. This application enables users to safely buy and sell used electronics, furniture, vehicles, and more through a secure, verified community environment.
+A full-stack second-hand goods trading platform built with **Spring Boot 4.1.1**, **Thymeleaf**, and **PostgreSQL**. Users can browse, save, report, buy and sell listings, with a separate administrator portal.
 
 ![Tech Stack](https://img.shields.io/badge/Tech%20Stack-Java%20|%20Spring%20Boot%20|%20PostgreSQL-blue) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -9,7 +9,10 @@ A modern, full-stack second-hand goods trading platform built with **Spring Boot
 *   **Secure Authentication**: JWT-based stateless security with email verification workflows and rate-limited password resets.
 *   **Advanced Search Engine**: Real-time keyword searching combined with multi-category tagging (filters) and dynamic pagination.
 *   **Listing Management**: Users can create rich media listings with image uploads, condition grading, and geographic tagging.
-*   **Real-Time Notifications**: Integrated Server-Sent Events (SSE) engine pushes instant alerts to sellers when their items are viewed or interacted with.
+*   **Real-Time Notifications**: Persisted notifications with after-commit SSE delivery, read status, replay, COD alerts and saved-listing updates.
+*   **Favorites**: Star toggle and paginated saved-listing grid; sale/delist cleanup with notifications and best-effort email.
+*   **Moderation**: Listing reports, review/resolve workflow, user management and role-based login routing.
+*   **Payments**: Asynchronous wallet processing and seller-managed cash-on-delivery requests.
 *   **Comprehensive Audit Trail**: Every user action (Login, Create, Buy, Edit) is logged immutably and displayed in a personalized activity timeline.
 *   **Responsive UI**: Built with semantic HTML5/CSS3 and vanilla JavaScript for maximum performance without heavy framework overhead.
 
@@ -17,7 +20,7 @@ A modern, full-stack second-hand goods trading platform built with **Spring Boot
 
 ### Backend
 *   **Language**: Java 17+
-*   **Framework**: Spring Boot 3.x
+*   **Framework**: Spring Boot 4.1.1
     *   Spring Web MVC
     *   Spring Data JPA (Hibernate)
     *   Spring Security (JWT Implementation)
@@ -41,8 +44,8 @@ A modern, full-stack second-hand goods trading platform built with **Spring Boot
 
 1.  **Clone the Repository**
     ```bash
-    git clone https://github.com/your-username/used-marketplace.git
-    cd used-marketplace
+     # Clone your actual repository URL, then enter the Used checkout.
+     cd Used
     ```
 
 2.  **Configure Database**
@@ -79,3 +82,42 @@ src/main/java/com/example/Used
 ├── Service         # Business Logic Layer
 ├── Security        # JWT Filters, Config, UserDetails
 └── Exceptions      # Global Error Handling
+```
+
+## Development and verification
+
+Windows PowerShell (from the project root):
+```powershell
+.\mvnw.cmd compile
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"
+.\mvnw.cmd test "-Dtest=PaymentConcurrencyDbTest" "-Dspring.jpa.show-sql=false"
+```
+
+`dev` uses PostgreSQL configured in `application-dev.properties`. Override datasource
+and mail settings for your environment; do not copy credentials into documentation.
+Hibernate `ddl-auto=update` manages entity tables. Inspect the SQL files in
+`src/main/resources/db/` for additional indexes; entity schema updates do not imply
+those scripts have been applied. The active-payment unique index is significant for concurrency.
+
+The concurrency suite uses real PostgreSQL, unique committed fixtures, the real
+payment executor and a recording mail sender (no external mail delivery). It checks
+competing submissions, wallet overspending, rollback, the legacy purchase path and
+favorite/sale overlap. Fixtures are deleted by their IDs after tasks finish; there
+is no test-wide rollback. A failed race test may describe a production gap rather
+than a broken test. Other existing dev-profile tests may use seed data and real mail.
+
+## UI conventions
+
+All full-page templates load `static/css/theme.css` after their page styles. It owns
+the shared purple/blue primary action palette, semantic success/error colors, card
+shape, typography, keyboard focus, mobile layout and reduced-motion rules. Favorites
+use a star consistently. Admin navigation retains its dark background and active-page
+indicator; logout and marketplace links remain available on mobile.
+
+## Documentation
+
+- [API reference](API%20docs.MD): endpoint auth, request/response shapes and side effects.
+- [User stories](UserStories.MD): features and acceptance criteria.
+- [Review findings](REVIEW.md): verification results and remaining consistency gaps.
+
+The maintained README is `README.MD` (there is no separate `Readme.docs` file).

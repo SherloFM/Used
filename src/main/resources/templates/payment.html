@@ -15,23 +15,24 @@
         .card-header { padding: 1.5rem; border-bottom: 1px solid #f0f0f0; }
         .card-body { padding: 1.5rem; }
         .method { display:flex; align-items:center; gap:12px; padding:14px; border:2px solid #eee; border-radius:12px; margin-bottom:12px; cursor:pointer; }
-        .method.active { border-color: #a06cd5; background: #faf7ff; }
+        .method.active { border-color: var(--brand); background: #faf7ff; }
         .method.disabled { opacity: 0.5; cursor: not-allowed; }
         .dot { width:18px; height:18px; border-radius:50%; border:2px solid #ccc; }
-        .method.active .dot { border-color: #a06cd5; background: radial-gradient(#a06cd5 40%, transparent 45%); }
+        .method.active .dot { border-color: var(--brand); background: radial-gradient(var(--brand) 40%, transparent 45%); }
         .summary-row { display:flex; justify-content:space-between; padding:8px 0; color:#555; }
         .summary-row.total { font-weight:700; font-size:1.1rem; color:#2c3e50; border-top:1px solid #eee; padding-top:12px; margin-top:12px; }
-        .btn-buy { width:100%; padding:14px; border:none; border-radius:12px; background: linear-gradient(90deg,#6ec3f4,#a06cd5); color:white; font-weight:700; font-size:1rem; cursor:pointer; }
+        .btn-buy { width:100%; padding:14px; border:none; border-radius:12px; background: var(--brand-gradient); color:white; font-weight:700; font-size:1rem; cursor:pointer; }
         .btn-buy:disabled { opacity:0.6; cursor:not-allowed; }
         #statusCard { display:none; text-align:center; padding:2rem; }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
 <div th:replace="~{fragments/navbar :: nav}"></div>
 
 <div class="page-container">
     <div class="back-nav" style="margin-bottom:1.5rem;">
-        <a href="#" onclick="history.back(); return false;" style="color:#a06cd5; text-decoration:none; font-weight:600;"><i class="fas fa-arrow-left"></i> Back</a>
+        <a href="#" onclick="history.back(); return false;" style="color:var(--brand); text-decoration:none; font-weight:600;"><i class="fas fa-arrow-left"></i> Back</a>
     </div>
 
     <div id="checkoutGrid" class="grid">
@@ -91,7 +92,7 @@
 
     <div id="statusCard" class="card">
         <div class="card-body">
-            <i id="statusIcon" class="fas fa-spinner fa-spin" style="font-size:3rem; color:#a06cd5;"></i>
+            <i id="statusIcon" class="fas fa-spinner fa-spin" style="font-size:3rem; color:var(--brand);"></i>
             <h2 id="statusTitle" style="margin:1rem 0 0.5rem 0;">Processing your payment</h2>
             <p id="statusText" style="color:#666;">Please wait...</p>
             <a href="/" class="btn btn-ghost" style="margin-top:1rem;">Back to Home</a>
@@ -166,7 +167,7 @@
             document.getElementById('statusCard').style.display = 'block';
             if (selectedMethod === 'COD') {
                 document.getElementById('statusIcon').className = 'fas fa-handshake';
-                document.getElementById('statusIcon').style.color = '#a06cd5';
+                document.getElementById('statusIcon').style.color = 'var(--brand)';
                 document.getElementById('statusTitle').textContent = 'Waiting for seller approval';
                 if (qpos > 1) {
                     document.getElementById('statusText').textContent = 'You are #' + qpos + ' in queue. ' + (qpos-1) + ' buyer(s) ahead of you. Waiting for seller...';

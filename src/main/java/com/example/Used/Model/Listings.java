@@ -75,6 +75,14 @@ public class Listings {
     @Column(nullable = false)
     private Listings.Status status;
 
+    /**
+     * Why the listing is no longer ACTIVE (null while ACTIVE/SOLD): e.g.
+     * "Removed by you", "Removed by administrator",
+     * "Removed by moderation (report #12)". Shown on the seller's own listings.
+     */
+    @Column
+    private String statusReason;
+
     @Column
     @CreationTimestamp
     private LocalDateTime createdAt;

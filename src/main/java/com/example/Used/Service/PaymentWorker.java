@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +29,7 @@ public class PaymentWorker {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final EmailServices emailServices;
+    private final FavoriteService favoriteService;
     private final NotificationService notificationService;
 
     public PaymentWorker(PaymentRepository paymentRepository,
@@ -39,6 +39,7 @@ public class PaymentWorker {
                          UserRepository userRepository,
                          AuditLogService auditLogService,
                          EmailServices emailServices,
+                         FavoriteService favoriteService,
                          NotificationService notificationService) {
         this.paymentRepository = paymentRepository;
         this.listingRepository = listingRepository;
@@ -47,6 +48,7 @@ public class PaymentWorker {
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
         this.emailServices = emailServices;
+        this.favoriteService = favoriteService;
         this.notificationService = notificationService;
     }
 
@@ -55,11 +57,17 @@ public class PaymentWorker {
     public void executePayment(Long paymentId) {
         log.info("[PAYMENT] #{} running on '{}'", paymentId, Thread.currentThread().getName());
 
+        // Claim before any work: exactly one execution can move PENDING ->
+        // PROCESSING (same pattern as acceptCodPayment). A second run of the
+        // same payment (retry, stale worker task) fails the claim and stops
+        // here - no listing claim, no debits.
+        if (paymentRepository.updateStatusIfCurrent(
+                paymentId, Payment.Status.PENDING, Payment.Status.PROCESSING) == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentFailedException("PAYMENT_NOT_FOUND"));
-
-        payment.setStatus(Payment.Status.PROCESSING);
-        paymentRepository.save(payment);
 
         // Defense 1: only one buyer wins the ACTIVE -> SOLD flip
         int claimed = listingRepository.updateStatusIfCurrent(
@@ -67,6 +75,7 @@ public class PaymentWorker {
         if (claimed == 0) {
             throw new PaymentFailedException("ALREADY_SOLD");
         }
+        favoriteService.handleListingRemoved(payment.getListing().getId(), "sold");
 
         // Defense 3: lock both wallets, always lowest id first (no deadlocks)
         Long buyerId = payment.getBuyer().getId();
@@ -95,9 +104,12 @@ public class PaymentWorker {
         transaction.setStatus(Transactions.Status.COMPLETED);
         transactionsRepository.save(transaction);
 
-        payment.setStatus(Payment.Status.COMPLETED);
-        payment.setProcessedAt(LocalDateTime.now());
-        paymentRepository.save(payment);
+        // Conditional close: stamps processedAt and can never overwrite a row
+        // some other path already failed or completed.
+        if (paymentRepository.markCompletedIfCurrent(
+                paymentId, Payment.Status.PROCESSING, Payment.Status.COMPLETED) == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
     }
 
     /** Runs only after executePayment committed: audit trail, email, live push. */
@@ -119,13 +131,6 @@ public class PaymentWorker {
                 emailServices.sendListingSoldEmail(seller.getEmail(), title);
             }
 
-            notificationService.sendToUser(payment.getSeller().getId(), "NOTIFICATION", Map.of(
-                    "title", "Item sold",
-                    "message", "Your item '" + title + "' was sold!",
-                    "type", "success",
-                    "paymentId", payment.getId(),
-                    "listingId", payment.getListing().getId(),
-                    "amount", payment.getAmount().toPlainString()));
         });
     }
 
@@ -149,6 +154,7 @@ public class PaymentWorker {
         if (claimed == 0) {
             throw new PaymentFailedException("ALREADY_SOLD");
         }
+        favoriteService.handleListingRemoved(payment.getListing().getId(), "sold");
 
         Transactions transaction = new Transactions();
         transaction.setListing(payment.getListing());
@@ -162,6 +168,13 @@ public class PaymentWorker {
                 paymentId, Payment.Status.PROCESSING, Payment.Status.COMPLETED) == 0) {
             throw new PaymentFailedException("ALREADY_HANDLED");
         }
+        String title = payment.getListing().getTitle();
+        notificationService.sendToUser(payment.getSeller().getId(), "LISTING_SOLD", Map.of(
+                "title", "Item sold",
+                "message", "Your item '" + title + "' was sold!",
+                "type", "success",
+                "paymentId", payment.getId(),
+                "listingId", payment.getListing().getId()));
     }
 
     /** Seller declined: the payment is closed with reason COD_DECLINED. */

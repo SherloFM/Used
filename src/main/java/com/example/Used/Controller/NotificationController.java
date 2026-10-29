@@ -25,9 +25,10 @@ public class NotificationController {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter stream() {
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter stream(
+            @RequestHeader(value = "Last-Event-ID", required = false) Long lastEventId) {
         User me = currentUserService.getCurrentUser();
-        return notificationService.subscribe(me.getId());
+        return notificationService.subscribe(me.getId(), lastEventId);
     }
 
     @GetMapping

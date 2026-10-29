@@ -27,4 +27,23 @@ public class ChatConversation {
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime lastMessageAt = LocalDateTime.now();
+
+    /**
+     * Per-user "deleted" flag: hides the conversation from that user's chat
+     * list without deleting it for the other participant. A new message in
+     * the conversation clears the recipient's flag again.
+     */
+    private boolean hiddenForBuyer = false;
+    private boolean hiddenForSeller = false;
+
+    public boolean isHiddenFor(User user) {
+        if (buyer != null && buyer.getId().equals(user.getId())) return hiddenForBuyer;
+        if (seller != null && seller.getId().equals(user.getId())) return hiddenForSeller;
+        return false;
+    }
+
+    public void setHiddenFor(User user, boolean hidden) {
+        if (buyer != null && buyer.getId().equals(user.getId())) hiddenForBuyer = hidden;
+        else if (seller != null && seller.getId().equals(user.getId())) hiddenForSeller = hidden;
+    }
 }

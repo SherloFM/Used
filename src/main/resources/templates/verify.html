@@ -12,7 +12,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #6ec3f4 0%, #a06cd5 100%);
+            background: var(--brand-gradient);
             padding: 2rem;
         }
 
@@ -60,7 +60,7 @@
 
         .email-display {
             font-weight: 700;
-            color: #a06cd5;
+            color: var(--brand);
             word-break: break-all;
         }
 
@@ -84,7 +84,7 @@
         }
 
         .code-input:focus {
-            border-color: #a06cd5;
+            border-color: var(--brand);
             box-shadow: 0 0 0 4px rgba(160, 108, 213, 0.1);
         }
 
@@ -94,7 +94,7 @@
             padding: 14px;
             border: none;
             border-radius: 8px;
-            background: linear-gradient(90deg, #6ec3f4, #a06cd5);
+            background: var(--brand-gradient);
             color: white;
             font-weight: 600;
             font-size: 1.05rem;
@@ -113,7 +113,7 @@
             color: #888;
             text-decoration: none;
         }
-        .resend-link:hover { color: #a06cd5; text-decoration: underline; }
+        .resend-link:hover { color: var(--brand); text-decoration: underline; }
 
         /* Messages */
         .msg-box {
@@ -127,6 +127,7 @@
         .msg-success { background: #eafaf1; color: #27ae60; border: 1px solid #c3e6cb; display: block; }
 
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body class="auth-container">
 

@@ -27,6 +27,13 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getMyConversations(principal));
     }
 
+    /** Deletes a chat from the CURRENT user's list only (204). */
+    @DeleteMapping("/conversation/{id}")
+    public ResponseEntity<Void> deleteConversation(@PathVariable Long id, Principal principal) {
+        chatService.deleteConversation(id, principal);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/conversation/{id}/messages")
     public ResponseEntity<List<ChatMessageDto>> messages(@PathVariable Long id, Principal principal) {
         return ResponseEntity.ok(chatService.getMessages(id, principal));

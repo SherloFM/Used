@@ -174,7 +174,9 @@ public class ReportService {
         if (request.getDecision() == ListingReport.Status.ACTION_TAKEN
                 && request.isDelistListing()) {
             try {
-                listingService.adminDeleteListing(report.getListing().getId());
+                listingService.adminDeleteListing(
+                        report.getListing().getId(),
+                        "Removed by moderation (report #" + report.getId() + ")");
                 report.setAdminNotes(appendNote(report.getAdminNotes(), "Listing delisted."));
             } catch (InformationExistException e) {
                 report.setAdminNotes(appendNote(report.getAdminNotes(),

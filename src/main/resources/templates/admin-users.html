@@ -6,6 +6,7 @@
     <title>Users - Admin Portal</title>
     <link rel="stylesheet" th:href="@{/css/admin.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
 <div class="admin-shell">
@@ -19,7 +20,7 @@
 
         <div class="panel">
             <div class="panel-head">
-                <h2><i class="fas fa-users" style="color:#a06cd5;"></i> All members</h2>
+                <h2><i class="fas fa-users" style="color:var(--brand);"></i> All members</h2>
                 <div class="filter-row">
                     <input type="text" id="userSearch" placeholder="Search name / email / role...">
                 </div>
@@ -32,7 +33,7 @@
         <!-- USER DETAIL PANEL -->
         <div class="panel" id="userDetailPanel" style="display:none;">
             <div class="panel-head">
-                <h2><i class="fas fa-id-card" style="color:#6ec3f4;"></i> User detail</h2>
+                <h2><i class="fas fa-id-card" style="color:var(--brand);"></i> User detail</h2>
                 <button class="btn btn-ghost btn-sm" onclick="closeUserDetail()"><i class="fas fa-times"></i> Close</button>
             </div>
             <div class="panel-body" id="userDetailBox"></div>

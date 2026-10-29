@@ -20,7 +20,7 @@
         .fav-card-meta { color:#888; font-size:0.85rem; margin-bottom:0.8rem; }
         .fav-card-actions { margin-top:auto; display:flex; gap:0.5rem; }
         .fav-card-actions a, .fav-card-actions button { flex:1; text-align:center; padding:0.5rem; border-radius:8px; font-size:0.85rem; font-weight:600; text-decoration:none; border:none; cursor:pointer; }
-        .btn-view { background:linear-gradient(90deg,#6ec3f4,#a06cd5); color:#fff; }
+        .btn-view { background:var(--brand-gradient); color:#fff; }
         .btn-remove { background:#fdecea; color:#c0392b; }
         .empty-state { text-align:center; padding:4rem 1rem; color:#888; }
         .empty-state i { font-size:3rem; color:#ddd; margin-bottom:1rem; }
@@ -30,25 +30,26 @@
         .spinner { animation:spin 1s linear infinite; }
         @keyframes spin { 100% { transform:rotate(360deg); } }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
 <div th:replace="~{fragments/navbar :: nav}"></div>
 
 <div class="fav-container">
     <div class="fav-header">
-        <h1><i class="fas fa-heart" style="color:#e74c3c;"></i> My Favorites</h1>
+        <h1><i class="fas fa-star favorite-icon" aria-hidden="true"></i> My Favorites</h1>
     </div>
 
     <div id="loadingState" style="text-align:center;padding:3rem;color:#888;">
-        <i class="fas fa-circle-notch spinner" style="font-size:2rem;color:#a06cd5;"></i>
+        <i class="fas fa-circle-notch spinner" style="font-size:2rem;color:var(--brand);"></i>
         <p>Loading your saved listings...</p>
     </div>
 
     <div id="emptyState" class="empty-state" style="display:none;">
-        <i class="fas fa-heart-broken"></i>
+        <i class="far fa-star" aria-hidden="true"></i>
         <h3>No favorites yet</h3>
-        <p>Browse listings and tap the heart to save them here.</p>
-        <a href="/" style="display:inline-block;margin-top:1rem;padding:0.7rem 1.4rem;background:linear-gradient(90deg,#6ec3f4,#a06cd5);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Browse Items</a>
+        <p>Browse listings and tap the star to save them here.</p>
+        <a href="/" style="display:inline-block;margin-top:1rem;padding:0.7rem 1.4rem;background:var(--brand-gradient);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Browse Items</a>
     </div>
 
     <div id="grid" class="fav-grid"></div>

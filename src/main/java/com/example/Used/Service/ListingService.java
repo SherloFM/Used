@@ -6,10 +6,13 @@ import com.example.Used.Model.AuditLog;
 import com.example.Used.Model.Categories;
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Requests.ListingSearchRequests;
+import com.example.Used.Model.Responses.MyListingResponse;
+import com.example.Used.Model.Transactions;
 import com.example.Used.Model.User;
 import com.example.Used.Repository.CategoryRepository;
 import com.example.Used.Repository.ListingRepository;
 import com.example.Used.Repository.ListingRepository;
+import com.example.Used.Repository.TransactionsRepository;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,15 +25,20 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ListingService {
 
     private final AuditLogService auditLogService;
     private final ListingRepository listingsRepository;
+    private final TransactionsRepository transactionsRepository;
     private final CurrentUserService currentUserService;
     private final EmailServices emailServices;
     private final FavoriteService favoriteService;
@@ -39,6 +47,7 @@ public class ListingService {
     @Autowired
     public ListingService(
             ListingRepository listingsRepository,
+            TransactionsRepository transactionsRepository,
             CurrentUserService currentUserService,
             EmailServices emailServices,
             AuditLogService auditLogService,
@@ -46,6 +55,7 @@ public class ListingService {
             FavoriteService favoriteService
     ) {
         this.listingsRepository = listingsRepository;
+        this.transactionsRepository = transactionsRepository;
         this.currentUserService = currentUserService;
         this.emailServices = emailServices;
         this.auditLogService = auditLogService;
@@ -116,6 +126,7 @@ public class ListingService {
     }
 
     // UPDATE LISTING
+    @org.springframework.transaction.annotation.Transactional
     public Listings updateListing(
             Long id,
             Listings listingRequest
@@ -130,7 +141,7 @@ public class ListingService {
         }
 
         Listings listing = listingsRepository
-                .findByIdAndUserId(id, user.getId())
+                .findByIdAndUserIdForUpdate(id, user.getId())
                 .orElseThrow(() ->
                         new InformationExistException(
                                 "Listing not found or you are not the owner"
@@ -142,6 +153,22 @@ public class ListingService {
             );
         }
 
+        List<String> changedFields = new ArrayList<>();
+        if (!Objects.equals(listing.getTitle(), listingRequest.getTitle())) {
+            changedFields.add("title");
+        }
+        if (!Objects.equals(listing.getDescription(), listingRequest.getDescription())) {
+            changedFields.add("description");
+        }
+        if (Double.compare(listing.getPrice(), listingRequest.getPrice()) != 0) {
+            changedFields.add("price");
+        }
+        if (!Objects.equals(listing.getCondition(), listingRequest.getCondition())) {
+            changedFields.add("condition");
+        }
+        if (!Objects.equals(listing.getLocation(), listingRequest.getLocation())) {
+            changedFields.add("location");
+        }
 
         listing.setTitle(listingRequest.getTitle());
         listing.setDescription(listingRequest.getDescription());
@@ -150,6 +177,9 @@ public class ListingService {
         listing.setLocation(listingRequest.getLocation());
 
         listingsRepository.save(listing);
+        if (!changedFields.isEmpty()) {
+            favoriteService.notifyListingUpdated(listing, changedFields);
+        }
 
         auditLogService.log(
                 AuditLog.AuditAction.LISTING_UPDATED,
@@ -161,6 +191,7 @@ public class ListingService {
     }
 
     // DELETE LISTING
+    @org.springframework.transaction.annotation.Transactional
     public void deleteListing(Long id) {
 
         User user = currentUserService.getCurrentUser();
@@ -172,7 +203,7 @@ public class ListingService {
         }
 
         Listings listing = listingsRepository
-                .findByIdAndUserId(id, user.getId())
+                .findByIdAndUserIdForUpdate(id, user.getId())
                 .orElseThrow(() ->
                         new InformationExistException(
                                 "Listing not found or you are not the owner"
@@ -185,6 +216,7 @@ public class ListingService {
         }
 
         listing.setStatus(Listings.Status.DELISTED);
+        listing.setStatusReason("Removed by you");
 
         listingsRepository.save(listing);
 
@@ -199,7 +231,13 @@ public class ListingService {
         );
     }
 
+    /** Kept for existing callers: default reason when no specific one applies. */
     public void adminDeleteListing(Long id) {
+        adminDeleteListing(id, "Removed by administrator");
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void adminDeleteListing(Long id, String reason) {
 
         User admin = currentUserService.getCurrentUser();
 
@@ -209,7 +247,7 @@ public class ListingService {
             );
         }
 
-        Listings listing = listingsRepository.findById(id)
+        Listings listing = listingsRepository.findByIdForUpdate(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Listing not found"
@@ -222,11 +260,15 @@ public class ListingService {
                     "A sold listing cannot be removed"
             );
         }
+        if (listing.getStatus() != Listings.Status.ACTIVE) {
+            throw new InformationExistException("Listing has already been removed");
+        }
 
         String sellerEmail = listing.getUser().getEmail();
         String listingTitle = listing.getTitle();
 
         listing.setStatus(Listings.Status.DELISTED);
+        listing.setStatusReason(reason);
 
         listingsRepository.save(listing);
 
@@ -247,7 +289,30 @@ public class ListingService {
         );
     }
 
+    // MY LISTINGS (profile page tab)
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<MyListingResponse> getMyListings() {
+        User me = currentUserService.getCurrentUser();
+
+        List<Listings> listings = listingsRepository.findByUserIdOrderByCreatedAtDesc(me.getId());
+
+        // One query fetches the buyer usernames of every sold listing (no N+1)
+        List<Long> soldIds = listings.stream()
+                .filter(l -> l.getStatus() == Listings.Status.SOLD)
+                .map(Listings::getId)
+                .toList();
+        Map<Long, Transactions> salesByListing = soldIds.isEmpty()
+                ? Map.of()
+                : transactionsRepository.findWithBuyerByListingIdIn(soldIds).stream()
+                    .collect(Collectors.toMap(t -> t.getListing().getId(), t -> t));
+
+        return listings.stream()
+                .map(l -> MyListingResponse.from(l, salesByListing.get(l.getId())))
+                .toList();
+    }
+
     // UPLOAD / CHANGE LISTING IMAGE
+    @org.springframework.transaction.annotation.Transactional
     public Listings uploadImage(
             Long id,
             MultipartFile img
@@ -256,16 +321,21 @@ public class ListingService {
         User user = currentUserService.getCurrentUser();
 
         Listings listing = listingsRepository
-                .findByIdAndUserId(id, user.getId())
+                .findByIdAndUserIdForUpdate(id, user.getId())
                 .orElseThrow(() ->
                         new InformationExistException(
                                 "Listing not found or you are not the owner"
                         ));
 
-        listing.setImg(img.getBytes());
+        byte[] imageBytes = img.getBytes();
+        boolean imageChanged = !Arrays.equals(listing.getImg(), imageBytes);
+        listing.setImg(imageBytes);
         listing.setImgtype(img.getContentType());
 
         listingsRepository.save(listing);
+        if (imageChanged) {
+            favoriteService.notifyListingUpdated(listing, List.of("image"));
+        }
 
         return listing;
     }

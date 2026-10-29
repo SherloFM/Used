@@ -2,12 +2,14 @@ package com.example.Used.Repository;
 
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +21,17 @@ public interface ListingRepository extends JpaRepository<Listings,Long>, JpaSpec
     Optional<Listings> findByIdWithUser(@Param("id") Long id);
 
     Optional<Listings> findByIdAndUserId(Long id, Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT l FROM Listings l WHERE l.id = :id AND l.user.id = :userId")
+    Optional<Listings> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT l FROM Listings l WHERE l.id = :id")
+    Optional<Listings> findByIdForUpdate(@Param("id") Long id);
+
+    /** All listings owned by a user, newest first — the profile's "My Listings" tab. */
+    List<Listings> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     @Query("SELECT l FROM Listings l LEFT JOIN FETCH l.user WHERE l.id = :id AND l.user.id = :userId")
     Optional<Listings> findByIdAndUserIdWithUser(@Param("id") Long id, @Param("userId") Long userId);

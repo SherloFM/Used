@@ -6,6 +6,7 @@
     <title>Reports - Admin Portal</title>
     <link rel="stylesheet" th:href="@{/css/admin.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
 <div class="admin-shell">
@@ -19,7 +20,7 @@
 
         <div class="panel">
             <div class="panel-head">
-                <h2><i class="fas fa-flag" style="color:#a06cd5;"></i> Report queue</h2>
+                <h2><i class="fas fa-flag" style="color:var(--brand);"></i> Report queue</h2>
                 <div class="filter-row">
                     <label>Status</label>
                     <select id="statusFilter">
@@ -44,7 +45,7 @@
         <!-- REPORT REVIEW PANEL -->
         <div class="panel" id="reportPanel" style="display:none;">
             <div class="panel-head">
-                <h2><i class="fas fa-clipboard-check" style="color:#a06cd5;"></i> Review report <span id="reportPanelTitle"></span></h2>
+                <h2><i class="fas fa-clipboard-check" style="color:var(--brand);"></i> Review report <span id="reportPanelTitle"></span></h2>
                 <button class="btn btn-ghost btn-sm" onclick="closeReportPanel()"><i class="fas fa-times"></i> Close</button>
             </div>
             <div class="panel-body" id="reportPanelBox"></div>

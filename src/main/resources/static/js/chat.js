@@ -74,18 +74,42 @@
                 }
 
                 conversations.forEach(conversation => {
-                    const item = document.createElement('button');
-                    item.type = 'button';
-                    item.className = 'chat-all-item';
-                    item.style.width = '100%';
-                    item.style.textAlign = 'left';
-                    item.style.background = 'white';
-                    item.style.border = '0';
-                    item.textContent = `${conversation.listingTitle} — ${conversation.otherUserName}`;
-                    item.addEventListener('click', () => {
+                    // Row = open button + per-user delete ("remove this chat from my list")
+                    const row = document.createElement('div');
+                    row.className = 'chat-all-item';
+                    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #f0f0f0;';
+
+                    const open = document.createElement('button');
+                    open.type = 'button';
+                    open.style.cssText = 'flex:1;min-width:0;background:none;border:0;padding:10px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                    open.textContent = `${conversation.listingTitle} — ${conversation.otherUserName}`;
+                    open.title = open.textContent;
+                    open.addEventListener('click', () => {
                         window.location.href = `/listing/${encodeURIComponent(conversation.listingId)}?conversationId=${encodeURIComponent(conversation.conversationId)}`;
                     });
-                    list.appendChild(item);
+
+                    const remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.setAttribute('aria-label', 'Delete chat');
+                    remove.title = 'Delete this chat from my list';
+                    remove.style.cssText = 'background:none;border:0;color:#9aa1ad;padding:10px 12px;cursor:pointer;flex-shrink:0;';
+                    remove.innerHTML = '<i class="far fa-trash-alt" aria-hidden="true"></i>';
+                    remove.addEventListener('click', async () => {
+                        if (!confirm(`Delete the chat with ${conversation.otherUserName} from your list?`)) return;
+                        try {
+                            await chatRequest(`/api/chat/conversation/${encodeURIComponent(conversation.conversationId)}`, {
+                                method: 'DELETE'
+                            });
+                        } catch (error) {
+                            showNotice(list, error.message);
+                            return;
+                        }
+                        loadConversations();
+                    });
+
+                    row.appendChild(open);
+                    row.appendChild(remove);
+                    list.appendChild(row);
                 });
             } catch (error) {
                 showNotice(list, error.message);
@@ -188,6 +212,29 @@
         button.addEventListener('click', openConversation);
         closeButton.addEventListener('click', () => { panel.style.display = 'none'; });
         sendButton.addEventListener('click', sendMessage);
+        const removeButton = document.getElementById('deleteChat');
+        if (removeButton) {
+            removeButton.addEventListener('click', async () => {
+                if (!conversationId) {
+                    showNotice(messagesElement, "Open the chat first, then you can delete it.");
+                    return;
+                }
+                if (!confirm('Delete this chat from your list?')) return;
+                try {
+                    await chatRequest(`/api/chat/conversation/${encodeURIComponent(conversationId)}`, {
+                        method: 'DELETE'
+                    });
+                } catch (error) {
+                    showNotice(messagesElement, error.message);
+                    return;
+                }
+                conversationId = null;
+                panel.style.display = 'none';
+                messagesElement.replaceChildren();
+                messagesLoaded = false;
+                if (window.AppErrors) AppErrors.showToast("Chat deleted from your list.");
+            });
+        }
         input.addEventListener('keydown', event => {
             if (event.key === 'Enter') sendMessage();
         });

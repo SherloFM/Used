@@ -296,7 +296,8 @@ class ReportServiceDbTest {
         Listings reloaded = listingRepository.findById(activeListing.getId()).orElseThrow();
         assertEquals(Listings.Status.DELISTED, reloaded.getStatus());
         assertEquals(ListingReport.Status.ACTION_TAKEN, resolved.getStatus());
-        assertTrue(resolved.getAdminNotes().contains("Listing delisted."));
+        assertTrue(resolved.getAdminNotes().contains("Listing delisted."),
+                "adminNotes was: '" + resolved.getAdminNotes() + "'");
         assertNotNull(resolved.getResolvedAt());
     }
 

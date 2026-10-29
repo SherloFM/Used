@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 640" role="img" aria-label="Second-hand marketplace illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#327fa8"/>
+      <stop offset="1" stop-color="#7650a2"/>
+    </linearGradient>
+    <linearGradient id="tagGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#187447"/>
+      <stop offset="1" stop-color="#25a35e"/>
+    </linearGradient>
+    <linearGradient id="cardShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef1fb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Canvas -->
+  <rect x="0" y="0" width="900" height="640" rx="28" fill="url(#bg)"/>
+
+  <!-- Soft decorative circles -->
+  <circle cx="110" cy="90" r="140" fill="#ffffff" opacity="0.08"/>
+  <circle cx="820" cy="560" r="180" fill="#ffffff" opacity="0.08"/>
+  <circle cx="780" cy="70" r="70" fill="#ffffff" opacity="0.10"/>
+  <circle cx="70" cy="560" r="90" fill="#ffffff" opacity="0.07"/>
+
+  <!-- Ground line -->
+  <rect x="150" y="520" width="600" height="10" rx="5" fill="#ffffff" opacity="0.25"/>
+
+  <!-- Big shopping bag (centerpiece) -->
+  <g>
+    <path d="M300 250 L600 250 L640 520 L260 520 Z" fill="#ffffff" opacity="0.96"/>
+    <path d="M330 250 C330 178 570 178 570 250" fill="none" stroke="#d9dceb" stroke-width="22" stroke-linecap="round"/>
+    <path d="M300 250 L600 250 L585 340 L315 340 Z" fill="#f2f4fb"/>
+    <path d="M400 250 C400 205 500 205 500 250" fill="none" stroke="#c9cfe0" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="450" cy="395" r="62" fill="#eef7f1"/>
+    <path d="M423 395 l18 19 38 -40" fill="none" stroke="#187447" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Floating product card: camera -->
+  <g transform="translate(160 150)">
+    <rect x="0" y="0" width="170" height="150" rx="18" fill="url(#cardShine)"/>
+    <rect x="22" y="38" width="126" height="74" rx="10" fill="#7650a2"/>
+    <circle cx="85" cy="75" r="26" fill="#ffffff"/>
+    <circle cx="85" cy="75" r="13" fill="#327fa8"/>
+    <rect x="58" y="24" width="34" height="10" rx="5" fill="#7650a2"/>
+    <circle cx="134" cy="30" r="7" fill="#187447"/>
+  </g>
+  <!-- Price tag on camera -->
+  <g transform="translate(290 118) rotate(12)">
+    <path d="M0 0 h64 l28 28 -28 28 h-64 z" fill="url(#tagGrad)"/>
+    <circle cx="16" cy="28" r="6" fill="#ffffff"/>
+    <text x="40" y="34" font-family="Segoe UI, Arial" font-size="17" font-weight="700" fill="#ffffff">$99</text>
+  </g>
+
+  <!-- Floating product card: headphones -->
+  <g transform="translate(570 130)">
+    <rect x="0" y="0" width="170" height="150" rx="18" fill="url(#cardShine)"/>
+    <path d="M45 95 C45 45 125 45 125 95" fill="none" stroke="#7650a2" stroke-width="13" stroke-linecap="round"/>
+    <rect x="33" y="88" width="24" height="38" rx="10" fill="#327fa8"/>
+    <rect x="113" y="88" width="24" height="38" rx="10" fill="#327fa8"/>
+  </g>
+  <!-- Star sparkle -->
+  <g transform="translate(745 118)" fill="#ffd166">
+    <path d="M0 -22 L5 -6 L22 0 L5 6 L0 22 L-5 6 L-22 0 L-5 -6 Z"/>
+    <path d="M40 30 L43 39 L52 42 L43 45 L40 54 L37 45 L28 42 L37 39 Z" opacity="0.9"/>
+  </g>
+
+  <!-- Floating product card: armchair -->
+  <g transform="translate(150 355)">
+    <rect x="0" y="0" width="170" height="150" rx="18" fill="url(#cardShine)"/>
+    <rect x="42" y="45" width="86" height="55" rx="18" fill="#e8933f"/>
+    <rect x="30" y="70" width="22" height="45" rx="10" fill="#c9772c"/>
+    <rect x="118" y="70" width="22" height="45" rx="10" fill="#c9772c"/>
+    <rect x="42" y="45" width="86" height="26" rx="13" fill="#f4a65b"/>
+  </g>
+
+  <!-- Floating product card: game controller -->
+  <g transform="translate(580 330)">
+    <rect x="0" y="0" width="170" height="150" rx="18" fill="url(#cardShine)"/>
+    <rect x="28" y="52" width="114" height="52" rx="24" fill="#7650a2"/>
+    <path d="M62 66 v24 M50 78 h24" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="104" cy="68" r="7" fill="#ffd166"/>
+    <circle cx="118" cy="80" r="7" fill="#e8933f"/>
+    <circle cx="104" cy="92" r="7" fill="#25a35e"/>
+    <circle cx="90" cy="80" r="7" fill="#327fa8"/>
+  </g>
+
+  <!-- Heart bubble -->
+  <g transform="translate(748 300)">
+    <circle cx="0" cy="0" r="26" fill="#ffffff" opacity="0.92"/>
+    <path d="M-9 -4 C-11 -10 -2 -14 0 -8 C2 -14 11 -10 9 -4 C8 2 2 6 0 9 C-2 6 -8 2 -9 -4 Z" fill="#b33228"/>
+  </g>
+</svg>

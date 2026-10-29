@@ -14,6 +14,7 @@ import java.util.Optional;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    List<Payment> findByListingIdOrderByIdAsc(Long listingId);
 
     /**
      * Layer-4 defense (double click / retry): finds any ACTIVE payment for a

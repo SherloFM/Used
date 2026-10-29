@@ -79,7 +79,7 @@
             padding: 10px 15px; cursor: pointer; transition: background 0.2s;
             color: #333; font-size: 0.95rem;
         }
-        .suggestion-item:hover { background: #f3f4f6; color: #a06cd5; }
+        .suggestion-item:hover { background: #f3f4f6; color: var(--brand); }
         .no-results { padding: 10px 15px; color: #999; font-style: italic; text-align: center; }
 
         /* TAG CHIPS */
@@ -94,7 +94,7 @@
         /* NAV ICONS & USER MENU */
         .nav-icons { display: flex; gap: 20px; font-size: 1.2rem; align-items: center; }
         .icon-btn { background: none; border: none; font-size: 1.5rem; color: #555; cursor: pointer; padding: 5px; transition: color 0.2s; }
-        .icon-btn:hover { color: #a06cd5; }
+        .icon-btn:hover { color: var(--brand); }
 
         .user-menu-wrapper { position: relative; }
         .dropdown-menu {
@@ -112,7 +112,7 @@
             border: none; font-size: 0.95rem; color: #333; cursor: pointer;
             text-decoration: none; transition: background 0.2s;
         }
-        .dropdown-item:hover { background: #f9f9f9; color: #a06cd5; }
+        .dropdown-item:hover { background: #f9f9f9; color: var(--brand); }
         .dropdown-item.danger { color: #e74c3c; }
         .dropdown-item.danger:hover { background: #fdf2f2; color: #c0392b; }
 
@@ -133,7 +133,7 @@
         .stats-row { display: flex; gap: 3rem; margin-top: 2rem; }
         .stat-item h3 { font-size: 2rem; color: #2c3e50; }
         .stat-item p { font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        .hero-image-placeholder { width: 100%; height: 350px; background: #eee; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 4rem; border: 2px dashed #ccc; }
+        .hero-illustration { width: 100%; max-width: 520px; border-radius: 20px; display: block; margin: 0 auto; box-shadow: 0 20px 50px rgba(118,80,162,0.28); }
 
         /* FEATURES STRIP */
         .features-strip {
@@ -163,7 +163,7 @@
 
         .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1rem 0; }
         .page-btn { background: white; border: 1px solid #ddd; color: #555; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
-        .page-btn:hover:not(:disabled) { background: #a06cd5; color: white; border-color: #a06cd5; }
+        .page-btn:hover:not(:disabled) { background: var(--brand); color: white; border-color: var(--brand); }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f9f9f9; }
         .page-info { font-size: 0.9rem; color: #888; }
 
@@ -171,7 +171,7 @@
         .lock-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 9999; }
         .lock-box { background: white; padding: 3rem; border-radius: 16px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); max-width: 400px; }
         .lock-icon { font-size: 4rem; color: #e74c3c; margin-bottom: 1rem; }
-        .btn-login-modal { display: inline-block; margin-top: 1.5rem; padding: 12px 30px; background: #a06cd5; color: white; border-radius: 8px; font-weight: bold; text-decoration: none; transition: transform 0.2s; }
+        .btn-login-modal { display: inline-block; margin-top: 1.5rem; padding: 12px 30px; background: var(--brand); color: white; border-radius: 8px; font-weight: bold; text-decoration: none; transition: transform 0.2s; }
         .btn-login-modal:hover { transform: scale(1.05); }
 
         /* RESPONSIVE */
@@ -203,7 +203,7 @@
 /* Toast Animations */
 .toast {
     background: white;
-    border-left: 4px solid #a06cd5;
+    border-left: 4px solid var(--brand);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     padding: 15px 20px;
     border-radius: 8px;
@@ -227,7 +227,7 @@
 }
         .chat-float {
             position: fixed; top: 80px; right: 20px; width: 56px; height: 56px;
-            border-radius: 50%; background: linear-gradient(90deg,#6ec3f4,#a06cd5);
+            border-radius: 50%; background: var(--brand-gradient);
             color:white; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:10001;
         }
         .chat-all {
@@ -235,12 +235,13 @@
             background:white; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.15);
             display:none; flex-direction:column; z-index:10001; overflow:hidden;
         }
-        .chat-all-header { background: linear-gradient(90deg,#6ec3f4,#a06cd5); color:white; padding:10px; display:flex; justify-content:space-between; }
+        .chat-all-header { background: var(--brand-gradient); color:white; padding:10px; display:flex; justify-content:space-between; }
         .chat-all-list { overflow-y:auto; }
         .chat-all-item { padding:10px; border-bottom:1px solid #f0f0f0; cursor:pointer; }
         .chat-all-item:hover { background:#f9f9f9; }
         .chat-notice { padding:16px; color:#777; text-align:center; }
     </style>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <!-- TOAST CONTAINER -->
 <div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
@@ -254,7 +255,7 @@
         <h1>Find Quality <span>Second-Hand</span><br>Treasures Today</h1>
         <p>Buy and sell electronics, furniture, vehicles, and more safely.</p>
         <div class="cta-buttons">
-            <a href="#listings-section" class="btn-primary disabled-action" onclick="handleLockedInteraction(event)">BROWSE ITEMS</a>
+            <a href="#listings-section" class="btn-primary">BROWSE ITEMS</a>
             <a href="/create-listing" class="btn-outline disabled-action" onclick="handleLockedInteraction(event)">SELL NOW</a>
         </div>
         <div class="stats-row">
@@ -263,7 +264,7 @@
         </div>
     </div>
     <div class="hero-image">
-        <div class="hero-image-placeholder"><i class="fas fa-camera-retro"></i></div>
+        <img src="/images/hero-marketplace.svg" alt="Illustration of buying and selling second-hand goods" class="hero-illustration">
     </div>
 </section>
 
@@ -309,7 +310,7 @@
         <p style="color:#666; margin-top:1rem;">Please log in or register to access marketplace features, search listings, and make purchases.</p>
         <a href="/login" class="btn-login-modal">Go to Login</a>
         <br>
-        <small style="color:#999; display:block; margin-top:1rem;">Don't have an account? <a href="/register" style="color:#a06cd5;">Register here</a></small>
+        <small style="color:#999; display:block; margin-top:1rem;">Don't have an account? <a href="/register" style="color:var(--brand);">Register here</a></small>
     </div>
 </div>
 
@@ -334,10 +335,6 @@
  let allCategories = [];
  let selectedCategoryIds = [];
 
- // --- NOTIFICATION STATE ---
- let eventSource = null;
- let unreadCount = 0;
-
  // DOM Elements Cache (Populated on Load)
  let els = {};
 
@@ -350,15 +347,31 @@
 
      // 2. Initialize Systems
      initAuthState();
-     loadAllCategoriesForTags();
+     loadAllCategoriesForTags().then(() => applyUrlSearchParams());
      setupGlobalTagInput();
      setupEventListeners();
-
-     // 3. Start Notifications if logged in
-     if (isLoggedIn()) {
-         setTimeout(initNotifications, 500);
-     }
  });
+
+ // Applies ?q=<keyword>&tags=<comma-separated names> that arrived from the
+ // search bar on another page, then runs the search here on the home page.
+ function applyUrlSearchParams() {
+     const params = new URLSearchParams(window.location.search);
+     if (!params.get('q') && !params.get('tags')) return;
+
+     if (params.get('q') && els.keywordInputEl) {
+         els.keywordInputEl.value = params.get('q');
+     }
+     const tagNames = (params.get('tags') || '')
+         .split(',').map(name => name.trim()).filter(Boolean);
+     // Match category names against the loaded categories (no popup for unknown ones)
+     tagNames.forEach(name => {
+         const match = allCategories.find(c => c.name.toLowerCase() === name.toLowerCase());
+         if (match) window.addGlobalTagById(match.id, match.name);
+     });
+
+     hideGlobalSuggestions();
+     if (isLoggedIn()) performGlobalSearch();
+ }
 
  function cacheElements() {
      els.gridEl = document.getElementById('listingsGrid');
@@ -448,8 +461,7 @@
      if (!isLoggedIn()) {
          if(els.lockModal) els.lockModal.style.display = 'flex';
      } else {
-         const section = document.getElementById("listings-section");
-         if (section) section.scrollIntoView({ behavior: "smooth" });
+         window.location.href = '/create-listing';
      }
  }
 
@@ -457,7 +469,6 @@
      if (confirm("Are you sure you want to log out?")) {
          localStorage.removeItem(TOKEN_KEY);
          sessionStorage.clear();
-         if(eventSource) eventSource.close();
          localStorage.removeItem('used_role');
          window.location.reload();
      }
@@ -689,90 +700,6 @@
      if (!isLoggedIn()) { handleLockedInteraction(); return; }
      if(els.userDropdown) els.userDropdown.classList.toggle('show');
  };
-
- // ==========================================
- // SSE NOTIFICATION SYSTEM
- // ==========================================
- function initNotifications() {
-     const token = localStorage.getItem(TOKEN_KEY);
-     if (!token) return;
-
-     if (eventSource) eventSource.close();
-
-     const url = `/api/notifications/stream?token=${encodeURIComponent(token)}`;
-     eventSource = new EventSource(url);
-
-     eventSource.onopen = () => console.log("✅ SSE Connected");
-     eventSource.onerror = (e) => {
-         console.error("❌ SSE Error", e);
-         eventSource.close();
-         setTimeout(() => { if(localStorage.getItem(TOKEN_KEY)) initNotifications(); }, 5000);
-     };
-
-     eventSource.addEventListener("NOTIFICATION", (e) => {
-         try {
-             const data = JSON.parse(e.data);
-             handleIncomingNotification(data);
-         } catch (err) { console.error("Parse Error", err); }
-     });
- }
-
- function handleIncomingNotification(data) {
-     unreadCount++;
-     updateBadgeUI();
-     showToast(data.title || "New Notification", data.message || "", data.type || "info");
-     addToHistory(data);
- }
-
- function updateBadgeUI() {
-     if(!els.notifBadge) return;
-     if (unreadCount > 0) {
-         els.notifBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-         els.notifBadge.style.display = 'flex';
-     } else {
-         els.notifBadge.style.display = 'none';
-     }
- }
-
- window.toggleNotifDropdown = function(e) {
-     if(e) e.stopPropagation(); // Prevent immediate closure
-     if(!els.notifDropdown) return;
-     const isVisible = els.notifDropdown.style.display === 'block';
-     if (isVisible) {
-         els.notifDropdown.style.display = 'none';
-         unreadCount = 0;
-         updateBadgeUI();
-     } else {
-         els.notifDropdown.style.display = 'block';
-     }
- };
-
- function addToHistory(data) {
-     if(!els.notifList) return;
-     if (els.notifList.children.length === 1 && els.notifList.firstChild.tagName === 'P') {
-         els.notifList.innerHTML = '';
-     }
-     const item = document.createElement('div');
-     item.className = 'notif-item';
-     item.style.padding = '10px 15px';
-     item.style.borderBottom = '1px solid #f0f0f0';
-     item.innerHTML = `
-         <div style="font-weight:bold; color:#2c3e50;">${data.title}</div>
-         <div style="color:#666; font-size:0.85rem;">${data.message}</div>
-         <div style="color:#999; font-size:0.75rem;">${new Date().toLocaleTimeString()}</div>
-     `;
-     els.notifList.prepend(item);
- }
-
- function showToast(title, message, type = 'info') {
-     if(!els.toastContainer) return;
-     const toast = document.createElement('div');
-     toast.className = `toast ${type}`;
-     let icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-     toast.innerHTML = `<span>${icon}</span><div><strong>${title}</strong><br><small>${message}</small></div>`;
-     els.toastContainer.appendChild(toast);
-     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
- }
 
  function escapeHtml(text) {
      if (!text) return '';

@@ -42,7 +42,26 @@ public class ChatService {
                     c.setLastMessageAt(LocalDateTime.now());
                     return convRepo.save(c);
                 });
+        // Reopening an explicitly deleted chat brings it back for the opener
+        conversation.setHiddenFor(current, false);
         return toConversationDto(conversation, current);
+    }
+
+    /**
+     * "Delete" a chat for the current user only: the other participant keeps
+     * their copy. A new message from either side makes it reappear for the
+     * recipient so a hidden chat can never swallow new messages.
+     */
+    @Transactional
+    public void deleteConversation(Long conversationId, Principal principal) {
+        User current = currentUserService.getCurrentUser();
+        ChatConversation conv = convRepo.findById(conversationId).orElseThrow();
+        if (!conv.getBuyer().getId().equals(current.getId())
+                && !conv.getSeller().getId().equals(current.getId())) {
+            throw new RuntimeException("Not part of conversation");
+        }
+        conv.setHiddenFor(current, true);
+        convRepo.save(conv);
     }
 
     @Transactional
@@ -60,11 +79,14 @@ public class ChatService {
         msg.setRead(false);
         msgRepo.save(msg);
         conv.setLastMessageAt(LocalDateTime.now());
+        // Who receives this message (also un-hides their deleted chat, so a
+        // hidden conversation can never swallow new messages)
+        User recipient = conv.getBuyer().getId().equals(current.getId()) ? conv.getSeller() : conv.getBuyer();
+        conv.setHiddenFor(recipient, false);
         convRepo.save(conv);
 
         ChatMessageDto dto = toDto(msg, current);
         // send to recipient
-        User recipient = conv.getBuyer().getId().equals(current.getId()) ? conv.getSeller() : conv.getBuyer();
         messagingTemplate.convertAndSendToUser(recipient.getEmail(), "/queue/messages", dto);
         // also echo to sender for consistency
         messagingTemplate.convertAndSendToUser(current.getEmail(), "/queue/messages", dto);
@@ -93,6 +115,8 @@ public class ChatService {
         List<ChatConversation> list = convRepo.findByBuyerOrSellerOrderByLastMessageAtDesc(current, current);
         List<ChatConversationDto> out = new ArrayList<>();
         for (ChatConversation c : list) {
+            // Skip conversations the current user deleted from their list
+            if (c.isHiddenFor(current)) continue;
             out.add(toConversationDto(c, current));
         }
         return out;

@@ -2,6 +2,7 @@ package com.example.Used.Controller;
 
 import com.example.Used.Model.Listings;
 import com.example.Used.Model.Requests.ListingSearchRequests;
+import com.example.Used.Model.Responses.MyListingResponse;
 import com.example.Used.Model.Transactions;
 import com.example.Used.Service.ListingService;
 import com.example.Used.Service.TransactionServices;
@@ -97,6 +98,12 @@ public class ListingsController {
             @PathVariable Long id
     ) {
         return transactionServices.purchaseListing(id);
+    }
+
+    // MY LISTINGS (profile "My Listings" tab: every status + sold buyer / delist reason)
+    @GetMapping("/mine")
+    public List<MyListingResponse> getMyListings() {
+        return listingsService.getMyListings();
     }
 
     // SEARCH, FILTER, AND SORT

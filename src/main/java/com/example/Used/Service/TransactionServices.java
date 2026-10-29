@@ -59,28 +59,38 @@ public class TransactionServices {
             );
         }
 
-        // Listing must still be available
-        if (listing.getStatus() != Listings.Status.ACTIVE) {
+        // Listing must still be available... this is replaced by the atomic claim below.
+        // Capture BEFORE the claim: updateStatusIfCurrent clears the persistence
+        // context, and after it the listing is detached, so lazy fields like
+        // listing.getUser() could no longer be read.
+        User seller = listing.getUser();
+        Long sellerId = seller.getId();
+        String sellerEmail = seller.getEmail();
+        String listingTitle = listing.getTitle();
+        double price = listing.getPrice();
+
+        // Atomic claim replaces read-then-set: exactly one buyer can flip
+        // ACTIVE -> SOLD. Every other concurrent buyer updates 0 rows and
+        // gets a clean business error instead of the database's
+        // transaction-unique violation.
+        int claimed = listingRepository.updateStatusIfCurrent(
+                listingId, Listings.Status.ACTIVE, Listings.Status.SOLD);
+        if (claimed == 0) {
             throw new InformationExistException(
                     "Listing is no longer available for purchase"
             );
         }
-        User seller = listing.getUser();
 
         Transactions transaction = new Transactions();
 
-        transaction.setListing(listing);
+        transaction.setListing(listing);          // detached is fine: no cascade, only the FK id is written
         transaction.setBuyer(buyer);
         transaction.setSeller(seller);
-        transaction.setAmount(listing.getPrice());
+        transaction.setAmount(price);
         transaction.setStatus(Transactions.Status.COMPLETED);
 
         Transactions savedTransaction =
                 transactionsRepository.save(transaction);
-        // Mark listing as sold
-        listing.setStatus(Listings.Status.SOLD);
-
-        listingRepository.save(listing);
 
         // Notify users who saved this listing, then drop their favorites
         favoriteService.handleListingRemoved(listingId, "sold");
@@ -89,16 +99,16 @@ public class TransactionServices {
         auditLogService.log(
                 AuditLog.AuditAction.LISTING_SOLD,
                 buyer,
-                "Listing '" + listing.getTitle() + "' (id=" + listingId + ") sold for "
-                        + listing.getPrice() + " to user id=" + buyer.getId()
-                        + " from seller id=" + seller.getId(),
-                seller.getId()
+                "Listing '" + listingTitle + "' (id=" + listingId + ") sold for "
+                        + price + " to user id=" + buyer.getId()
+                        + " from seller id=" + sellerId,
+                sellerId
         );
 
         // Notify seller
         emailServices.sendListingSoldEmail(
-                seller.getEmail(),
-                listing.getTitle()
+                sellerEmail,
+                listingTitle
         );
 
         return savedTransaction;
