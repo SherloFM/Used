@@ -4,6 +4,20 @@ A full-stack second-hand goods trading platform built with **Spring Boot 4.1.1**
 
 ![Tech Stack](https://img.shields.io/badge/Tech%20Stack-Java%20|%20Spring%20Boot%20|%20PostgreSQL-blue) ![License](https://img.shields.io/badge/License-MIT-green)
 
+## Microservices Docker setup
+
+The nine services have individual Dockerfiles and a root `compose.yaml` for
+PostgreSQL, RabbitMQ, and optional pgAdmin. See [Docker setup](docs/docker-setup.md)
+for configuration, build commands, ports, and remaining runtime prerequisites.
+Every browser request now goes through one origin: [the gateway](docs/gateway.md)
+serves the pages and routes `/api/**` and `/auth/user/**` to the owning service.
+Kafka now distributes wallet-payment jobs using the existing Marketplace worker
+pool, bounded retries, and a dead-letter topic. See
+[Kafka payments](docs/kafka-payments.md) for the contract and test commands.
+Media now owns image bytes; Accounts and Marketplace store only the returned URL.
+See [Media service](docs/media-service.md).
+Full-stack business-workflow verification remains pending.
+
 ## ✨ Key Features
 
 *   **Secure Authentication**: JWT-based stateless security with email verification workflows and rate-limited password resets.

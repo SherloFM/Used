@@ -1,6 +1,8 @@
 //api central to handle errors instead of try catch
 
-package com.example.Used.Exceptions;
+package com.example.used.exceptions;
+
+import com.example.accounts.exceptions.RateLimitException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

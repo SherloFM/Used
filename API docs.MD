@@ -3,6 +3,10 @@
 This document outlines the RESTful endpoints available in the application.
 Base URL: `http://localhost:8080`
 
+Every path below is served by the gateway on that single origin, which routes it
+to the owning service. `/api/internal/**` and `/actuator/**` are not reachable
+through it. See [Gateway](docs/gateway.md).
+
 
 ## 🔐 Authentication (`/auth/user`)
 
@@ -124,6 +128,21 @@ Already resolved reports cannot be resolved again. Sold listings cannot be delis
 the report can still resolve with an explanatory admin note. All `/api/admin/reports`
 operations require ADMIN.
 
+## Images (Media) — internal upload, public read
+
+| Method | Endpoint | Access | Behavior |
+| --- | --- | --- | --- |
+| POST | `/api/internal/media` | `X-Internal-Token` | Multipart `ownerId` + `file`; returns `201` and an immutable URL |
+| GET | `/api/media/{id}` | Public | Returns JPEG/PNG bytes with long-lived caching and `ETag` |
+
+Browser uploads still use `PUT /api/profile/image` and
+`PUT /api/listings/{id}/image`; those services check ownership, call Media, and
+store only the returned `imgUrl`. JPEG and PNG up to 5 MB are accepted. Media
+verifies the actual bytes and rejects corrupt, unsupported, or oversized images
+with `400`/`413`. Profile and listing responses expose `imgUrl`; old inline
+`img`/`imgtype` values remain as a fallback. See
+[Media service](docs/media-service.md).
+
 ## Payments and wallet — authenticated
 
 | Method | Endpoint | Behavior |
@@ -140,7 +159,12 @@ operations require ADMIN.
 Payment acceptance example: `{"paymentId":42,"duplicate":false,"queuePosition":1}`.
 **202 is not payment completion.** Poll for `COMPLETED` or `FAILED`. Methods are
 `WALLET` (default) and `COD`; `CARD` currently returns 400. COD expires after five
-minutes if unanswered. Queue saturation may return 429. A competing wallet purchase
+minutes if unanswered. Wallet jobs now use Kafka (`payment-requests`, keyed by
+listing ID); 202 means the payment was recorded, not that Kafka confirmed delivery.
+Pending-payment recovery retries missed publication. Exhausted/invalid jobs are
+quarantined in `payment-requests.DLT`; matching pending wallet payments become
+FAILED with reason `KAFKA_DLT`. See [Kafka payment processing](docs/kafka-payments.md).
+A competing wallet purchase
 may be rejected before a payment row is created, or fail asynchronously.
 The legacy `/api/listings/{id}/buy` route is not the wallet-payment workflow.
 
