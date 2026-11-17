@@ -20,12 +20,22 @@ public_ip=$(curl -fsS -H "X-aws-ec2-metadata-token: $token" \
 
 echo "Public address: $public_ip"
 echo 'Notification health checks the mail server, so working SMTP details are required.'
-read -rp 'SMTP host (for example smtp.gmail.com): ' smtp_host
-read -rp 'SMTP port [587]: ' smtp_port
-smtp_port=${smtp_port:-587}
-read -rp 'SMTP username (usually the full email address): ' smtp_user
-read -rsp 'SMTP password or app password: ' smtp_pass
-echo
+# Non-interactive mode: supply PF_SMTP_HOST, PF_SMTP_USER and PF_SMTP_PASS so the
+# script can run as one command when hidden password input is inconvenient.
+if [[ -n "${PF_SMTP_HOST:-}" && -n "${PF_SMTP_USER:-}" && -n "${PF_SMTP_PASS:-}" ]]; then
+  smtp_host=$PF_SMTP_HOST
+  smtp_port=${PF_SMTP_PORT:-587}
+  smtp_user=$PF_SMTP_USER
+  smtp_pass=$PF_SMTP_PASS
+  echo 'Using SMTP settings supplied through the environment.'
+else
+  read -rp 'SMTP host (for example smtp.gmail.com): ' smtp_host
+  read -rp 'SMTP port [587]: ' smtp_port
+  smtp_port=${smtp_port:-587}
+  read -rp 'SMTP username (usually the full email address): ' smtp_user
+  read -rsp 'SMTP password or app password: ' smtp_pass
+  echo
+fi
 [[ -n "$smtp_host" && -n "$smtp_user" && -n "$smtp_pass" && "$smtp_port" =~ ^[0-9]+$ ]] || {
   echo 'SMTP host, username, password and a numeric port are required.' >&2
   exit 1
