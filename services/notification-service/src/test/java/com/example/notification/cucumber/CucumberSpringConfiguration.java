@@ -17,7 +17,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
         "services.accounts.base-url=http://localhost:9999",
         "spring.mail.host=localhost",
         "spring.mail.port=25",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 @AutoConfigureMockMvc
 public class CucumberSpringConfiguration {

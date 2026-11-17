@@ -15,7 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
         "services.accounts.base-url=http://localhost:8081",
         "services.marketplace.base-url=http://localhost:8083",
         "services.notification.base-url=http://localhost:8085",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 class FavoritesServiceApplicationTests {
 

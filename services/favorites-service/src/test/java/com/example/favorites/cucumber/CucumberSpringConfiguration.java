@@ -20,7 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "services.accounts.base-url=http://localhost:9999",
         "services.marketplace.base-url=http://localhost:9999",
         "services.notification.base-url=http://localhost:9999",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 @AutoConfigureMockMvc
 public class CucumberSpringConfiguration {

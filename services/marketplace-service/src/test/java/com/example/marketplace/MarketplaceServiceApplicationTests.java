@@ -2,6 +2,10 @@ package com.example.marketplace;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:marketplace-context;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
@@ -16,9 +20,17 @@ import org.springframework.boot.test.context.SpringBootTest;
         "services.audit.base-url=http://localhost:8087",
         "services.notification.base-url=http://localhost:8085",
         "services.media.base-url=http://localhost:8088",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,org.springframework.kafka.core.KafkaAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration,org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration"
 })
 class MarketplaceServiceApplicationTests {
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
+
+    @MockitoBean
+    private KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @MockitoBean
+    private ConsumerFactory<Object, Object> consumerFactory;
 
     @Test
     void contextLoads() {

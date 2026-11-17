@@ -1,8 +1,10 @@
 package com.example.moderation.cucumber;
 
 import io.cucumber.spring.CucumberContextConfiguration;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @CucumberContextConfiguration
 @SpringBootTest(properties = {
@@ -16,8 +18,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
         "security.jwt.audience=used-api",
         "services.accounts.base-url=http://localhost:9999",
         "services.marketplace.base-url=http://localhost:9999",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 @AutoConfigureMockMvc
 public class CucumberSpringConfiguration {
+    @MockitoBean
+    public RabbitTemplate rabbitTemplate;
 }

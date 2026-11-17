@@ -6,7 +6,10 @@ import com.example.marketplace.client.MediaClient;
 import com.example.marketplace.client.NotificationClient;
 import io.cucumber.spring.CucumberContextConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @CucumberContextConfiguration
@@ -23,10 +26,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "services.audit.base-url=http://localhost:9999",
         "services.notification.base-url=http://localhost:9999",
         "services.media.base-url=http://localhost:9999",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,org.springframework.kafka.core.KafkaAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration,org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration"
 })
 @AutoConfigureMockMvc
 public class CucumberSpringConfiguration {
+    @MockitoBean
+    public RabbitTemplate rabbitTemplate;
+
+    @MockitoBean
+    public KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @MockitoBean
+    public ConsumerFactory<Object, Object> consumerFactory;
+
     @MockitoBean
     public AccountsClient accountsClient;
 

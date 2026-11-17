@@ -15,7 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
         "services.accounts.base-url=http://localhost:8081",
         "spring.mail.host=localhost",
         "spring.mail.port=25",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 class NotificationServiceApplicationTests {
 

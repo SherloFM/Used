@@ -1,7 +1,9 @@
 package com.example.moderation;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:moderation-context;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
@@ -14,9 +16,11 @@ import org.springframework.boot.test.context.SpringBootTest;
         "security.jwt.audience=used-api",
         "services.accounts.base-url=http://localhost:8081",
         "services.marketplace.base-url=http://localhost:8083",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration"
+        "spring.autoconfigure.exclude=org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration"
 })
 class ModerationServiceApplicationTests {
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
 
     @Test
     void contextLoads() {
