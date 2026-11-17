@@ -1,0 +1,69 @@
+/* Shared design tokens and interaction rules. Loaded after page-specific styles. */
+:root {
+    --brand: #7650a2;
+    --brand-gradient: linear-gradient(100deg, #327fa8, #7650a2);
+    --success: #187447;
+    --danger: #b33228;
+    --warning: #915800;
+    --favorite: #946700;
+    --surface: #fff;
+    --page-bg: #f5f7fa;
+    --text: #28384a;
+    --muted: #596779;
+    --border: #dce2e9;
+    --radius: 12px;
+    --shadow: 0 4px 18px rgb(40 56 74 / 7%);
+    --green: var(--success);
+    --green-dark: var(--success);
+    --purple: var(--brand);
+    --dark: var(--text);
+    --bg: var(--page-bg);
+}
+body { background: var(--page-bg); color: var(--text); font-family: 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.5; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+button, .btn, .btn-primary, .btn-outline { min-height: 44px; }
+.btn-primary, .submit-btn, .btn-buy, .btn-save, .btn-view, .btn-login-modal,
+.admin-nav a.active { background: var(--brand-gradient); color: #fff; border-radius: 8px; }
+.btn-outline { background: var(--surface); color: var(--brand); border: 1px solid var(--brand); border-radius: 8px; }
+.btn-red, .btn-danger { background: var(--danger); color: #fff; }
+.btn-green, .btn-success { background: var(--success); color: #fff; }
+.btn-ghost { background: #edf0f5; color: var(--text); }
+.btn-remove { background: #fdecea; color: var(--danger); }
+.price-tag, .fav-card-price { color: var(--success); }
+.muted, .fav-card-meta, .empty-state, .state-box { color: var(--muted); }
+.card, .panel, .fav-card, .form-card, .auth-card, .wizard-card, .section-card, .detail-grid {
+    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea {
+    border-color: var(--border); border-radius: 8px; color: var(--text);
+}
+.page-container, .fav-container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+.fav-grid { grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
+.favorite-icon { color: var(--favorite); }
+#favBtn { min-width: 44px; }
+#favBtn[aria-pressed=true] { color: var(--favorite) !important; }
+.pagination { flex-wrap: wrap; gap: .75rem; }
+.admin-topbar, .panel-head, .fav-header { gap: 1rem; flex-wrap: wrap; }
+.admin-table th { color: var(--muted); }
+.admin-toast { max-width: min(360px, calc(100vw - 32px)); }
+@media (max-width: 900px) {
+    .admin-sidebar { flex-wrap: wrap; }
+    .admin-sidebar-footer { display: flex; padding: .5rem; width: 100%; }
+    .admin-nav { flex-wrap: wrap; }
+}
+@media (max-width: 900px) {
+    .navbar { flex-wrap: wrap; gap: .75rem; padding: .75rem 1rem; }
+    .navbar .search-container, #globalSearchContainer { order: 3; width: 100%; margin: 0 !important; min-width: 0; }
+    .search-container input, .tag-input-wrapper { min-width: 0; }
+    .right-col, .left-col { padding: 1.25rem; }
+    .detail-grid-2 { grid-template-columns: 1fr; }
+    .detail-grid-2 dd { margin-bottom: .5rem; overflow-wrap: anywhere; }
+    .auth-card, .wizard-card { max-width: calc(100vw - 32px); }
+    #reportModal > div { max-height: 90vh; overflow-y: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

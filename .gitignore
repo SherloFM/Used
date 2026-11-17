@@ -36,3 +36,9 @@ build/
 .env
 .env.*
 !.env.example
+
+# EC2 private keys and generated deployment bundles
+*.pem
+*.key
+/services/media-service/pom.xml.tmp
+/dist/

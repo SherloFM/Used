@@ -1,0 +1,47 @@
+package com.example.marketplace.controller;
+
+import com.example.marketplace.model.Categories;
+import com.example.marketplace.service.CategoryService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/categories")
+public class CategoryController {
+    private final CategoryService categoryService;
+
+    public CategoryController(CategoryService categoryService) {
+        this.categoryService = categoryService;
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
+    public Categories createCategory(
+            @RequestBody Categories category
+    ) {
+        return categoryService.createCategory(category);
+    }
+
+    @GetMapping
+    public List<Categories> getCategories() {
+        return categoryService.getCategories();
+    }
+
+    @GetMapping("/{id}")
+    public Categories getCategory(
+            @PathVariable Long id
+    ) {
+        return categoryService.getCategory(id);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public void deleteCategory(
+            @PathVariable Long id
+    ) {
+        categoryService.deleteCategory(id);
+    }
+
+}

@@ -1,0 +1,33 @@
+package com.example.favorites.client;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.util.Optional;
+
+@Component
+public class AccountsClient {
+    private final RestClient http;
+
+    public AccountsClient(@Qualifier("accountsRestClient") RestClient http) {
+        this.http = http;
+    }
+
+    public Optional<UserSummary> find(Long userId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        return http.get().uri("/api/internal/users/{id}", userId)
+                .exchange((request, response) -> {
+                    int status = response.getStatusCode().value();
+                    if (status == 404) {
+                        return Optional.<UserSummary>empty();
+                    }
+                    if (status < 200 || status >= 300) {
+                        throw new IllegalStateException("Accounts lookup failed with status " + status);
+                    }
+                    return Optional.ofNullable(response.bodyTo(UserSummary.class));
+                });
+    }
+}

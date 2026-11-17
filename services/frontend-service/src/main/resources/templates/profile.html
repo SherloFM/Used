@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Used Marketplace</title>
+    <script th:src="@{/js/auth.js}"></script>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- GLOBAL RESET & BASE --- */
+        body {
+            background: #f5f7fa;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* --- LOADING STATE --- */
+        #loadingState {
+            text-align: center;
+            padding: 4rem;
+            color: var(--brand);
+        }
+        .spinner-large {
+            font-size: 3rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- PROFILE HEADER CARD --- */
+        .profile-header {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .profile-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 6px;
+            background: var(--brand-gradient);
+        }
+
+        .avatar-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            flex-shrink: 0;
+        }
+        .avatar-wrapper {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #aaa;
+            border: 4px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .avatar-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-overlay {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 10;
+            font-size: 0.8rem;
+        }
+        .upload-overlay:hover { background: var(--brand); }
+
+        .user-info h2 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+            font-size: 1.8rem;
+        }
+        .user-meta {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .badge {
+            background: #eafaf1;
+            color: #27ae60;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- MAIN CONTENT GRID --- */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .profile-header { flex-direction: column; text-align: center; }
+            .user-meta { justify-content: center; }
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+        }
+        .section-title {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-control:focus {
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(160, 108, 213, 0.1);
+        }
+        textarea.form-control { resize: vertical; min-height: 100px; }
+
+        .btn-save {
+            background: var(--brand-gradient);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+        .btn-save:hover { opacity: 0.9; }
+        .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Activity Timeline */
+        .activity-timeline {
+            position: relative;
+            padding-left: 20px;
+        }
+        .activity-item {
+            position: relative;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .activity-item:last-child { border-bottom: none; margin-bottom: 0; }
+
+        .activity-dot {
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            background: var(--brand);
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #eee;
+        }
+        .activity-content h4 {
+            margin: 0 0 4px 0;
+            font-size: 0.95rem;
+            color: #2c3e50;
+        }
+        .activity-content p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+        .activity-time {
+            display: block;
+            font-size: 0.75rem;
+            color: #bdc3c7;
+            margin-top: 4px;
+        }
+        .empty-msg {
+            text-align: center;
+            color: #999;
+            padding: 2rem;
+            font-style: italic;
+        }
+
+        /* --- PROFILE TABS --- */
+        .profile-tabs {
+            display: flex; gap: 4px; margin-bottom: 1.5rem;
+            border-bottom: 2px solid #ececf3; flex-wrap: wrap;
+        }
+        .profile-tab {
+            background: none; border: none; padding: .9rem 1.3rem;
+            font-weight: 600; color: var(--muted); cursor: pointer;
+            border-bottom: 3px solid transparent; margin-bottom: -2px;
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 1rem;
+        }
+        .profile-tab:hover { color: var(--brand); }
+        .profile-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+        .tab-count {
+            background: #f0edf8; color: var(--brand); border-radius: 20px;
+            font-size: .78rem; padding: 2px 9px; font-weight: 700;
+        }
+
+        /* --- MY LISTINGS GRID --- */
+        .mylistings-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+        .ml-card {
+            background: white; border: 1px solid var(--border);
+            border-radius: var(--radius); box-shadow: var(--shadow);
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+        .ml-img { height: 150px; background: #f1f2f6; display: flex; align-items: center; justify-content: center; color: #b6bcc6; font-size: 2.2rem; }
+        .ml-img img { width: 100%; height: 100%; object-fit: cover; }
+        .ml-info { padding: .8rem 1rem; display: flex; flex-direction: column; gap: .3rem; flex: 1; }
+        .ml-title { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ml-price { color: var(--success); font-weight: 700; }
+        .ml-status {
+            align-self: flex-start; padding: 3px 10px; border-radius: 20px;
+            font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+        }
+        .ml-status.ACTIVE { background: #e7f6ee; color: var(--success); }
+        .ml-status.SOLD { background: #eef2ff; color: #3f5bc0; }
+        .ml-status.DELISTED { background: #fdecea; color: var(--danger); }
+        .ml-meta { font-size: .85rem; color: var(--muted); }
+        .ml-actions { margin-top: .5rem; display: flex; justify-content: flex-end; }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 9999;
+        }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+    <link rel="stylesheet" href="/css/theme.css">
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: nav}"></div>
+
+<div class="page-container">
+
+    <!-- LOADING STATE -->
+    <div id="loadingState">
+        <i class="fas fa-circle-notch spinner-large"></i>
+        <p>Loading Profile...</p>
+    </div>
+
+    <!-- MAIN CONTENT (Hidden until loaded) -->
+    <div id="profileContent" style="display:none;">
+
+        <!-- HEADER SECTION -->
+        <div class="profile-header">
+            <div class="avatar-container">
+                <div class="avatar-wrapper" id="avatarDisplay">
+                    <i class="fas fa-user"></i>
+                    <img id="avatarImg" src="" alt="Profile Pic" style="display:none;">
+                </div>
+                <label for="fileInput" class="upload-overlay" title="Change Photo">
+                    <i class="fas fa-camera"></i>
+                </label>
+                <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleImageUpload(this)">
+            </div>
+
+            <div class="user-info">
+                <h2 id="displayName">Loading Name...</h2>
+                <div class="user-meta">
+                    <span><i class="far fa-envelope"></i> <span id="displayEmail"></span></span>
+                    <span><i class="far fa-calendar-alt"></i> Member since <span id="displayJoined"></span></span>
+                    <span class="badge"><i class="fas fa-check-circle"></i> Verified</span>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statListings">0</div>
+                        <div class="stat-label">Active Listings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statSold">0</div>
+                        <div class="stat-label">Items Sold</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statRating">--</div>
+                        <div class="stat-label">Avg Rating</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABS: Profile / My Listings -->
+        <div class="profile-tabs">
+            <button class="profile-tab active" id="tabProfile" type="button"><i class="fas fa-user"></i> Profile</button>
+            <button class="profile-tab" id="tabListings" type="button"><i class="fas fa-tags"></i> My Listings <span class="tab-count" id="listingsTabCount" style="display:none;"></span></button>
+        </div>
+
+        <div id="profilePanel">
+        <!-- TWO COLUMN LAYOUT -->
+        <div class="content-grid">
+
+            <!-- LEFT COLUMN: EDIT PROFILE FORM -->
+            <div class="section-card">
+                <h3 class="section-title"><i class="fas fa-edit"></i> Edit Profile</h3>
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="firstName" class="form-control" placeholder="John">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="lastName" class="form-control" placeholder="Doe">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="phoneNumber" class="form-control" placeholder="+1 234 567 8900">
+                    </div>
+                    <div class="form-group">
+                        <label>Bio</label>
+                        <textarea id="bio" class="form-control" placeholder="Tell buyers a little about yourself..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-save" id="saveBtn">Save Changes</button>
+                </form>
+            </div>
+
+            <!-- RIGHT COLUMN: RECENT ACTIVITY -->
+            <div class="section-card">
+                <h3 class="section-title"><i class="fas fa-history"></i> Recent Activity</h3>
+                <div id="activityList" class="activity-timeline">
+                    <p class="empty-msg">Loading history...</p>
+                </div>
+            </div>
+
+        </div>
+        </div><!-- /profilePanel -->
+
+        <!-- MY LISTINGS TAB -->
+        <div id="myListingsPanel" style="display:none;">
+            <div class="section-card">
+                <h3 class="section-title"><i class="fas fa-tags"></i> My Listings</h3>
+                <div id="myListingsGrid" class="mylistings-grid" style="display:none;"></div>
+                <div id="myListingsLoading" style="text-align:center;padding:2rem;color:var(--muted);">
+                    <i class="fas fa-circle-notch fa-spin" style="font-size:2rem;"></i>
+                    <p style="margin-top:.5rem;">Loading your listings...</p>
+                </div>
+                <div id="myListingsEmpty" class="empty-msg" style="display:none;">
+                    You haven't listed anything yet.<br>
+                    <a href="/create-listing" style="color:var(--brand);font-weight:600;">Create your first listing</a>
+                </div>
+                <div id="myListingsError" class="empty-msg" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast">Profile updated successfully!</div>
+
+<script>
+    let currentUserId = null;
+    let currentSession = null;
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initProfilePage();
+    });
+
+    async function initProfilePage() {
+        currentSession = await getSession();
+        if (!currentSession) {
+            window.location.href = '/login';
+            return;
+        }
+
+        try {
+            // 1. Fetch Profile Data
+            const res = await authenticatedFetch('/api/profile');
+
+            if (!res.ok) throw new Error('Failed to load profile');
+
+            const data = await res.json();
+
+            // Store User ID for reference
+            if(data.user && data.user.id) {
+                currentUserId = data.user.id;
+            } else if (data.id) {
+                currentUserId = data.id;
+            }
+
+            renderProfile(data);
+
+            // 2. Fetch Activity History
+            loadUserActivity();
+
+            // 3. Wire up the Profile / My Listings tabs
+            initProfileTabs();
+        } catch (err) {
+            console.error(err);
+            if (window.AppErrors) AppErrors.showToast("Could not load profile. Please log in again.", true); else alert("Could not load profile. Please log in again.");
+            window.location.href = '/login';
+        } finally {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('profileContent').style.display = 'block';
+        }
+    }
+
+    function renderProfile(data) {
+        // Populate Header Info
+        const fname = data.firstName || '';
+        const lname = data.lastName || '';
+        const fullName = `${fname} ${lname}`.trim() || data.username || 'User';
+
+        document.getElementById('displayName').textContent = fullName;
+        document.getElementById('displayEmail').textContent = data.email || 'N/A';
+
+        if(data.createdAt) {
+            const date = new Date(data.createdAt);
+            document.getElementById('displayJoined').textContent = date.toLocaleDateString();
+        } else {
+            document.getElementById('displayJoined').textContent = "Today";
+        }
+
+        // Handle Image Display
+        const avatarImg = document.getElementById('avatarImg');
+        const defaultIcon = document.querySelector('#avatarDisplay i');
+
+        if (data.imgUrl) {
+            avatarImg.src = data.imgUrl;
+            avatarImg.style.display = 'block';
+            if(defaultIcon) defaultIcon.style.display = 'none';
+        } else if (data.img && typeof data.img === 'string' && data.img.length > 0) {
+            const mimeType = data.imgtype || 'image/jpeg';
+            avatarImg.src = `data:${mimeType};base64,${data.img}`;
+            avatarImg.style.display = 'block';
+            if(defaultIcon) defaultIcon.style.display = 'none';
+        } else {
+            avatarImg.style.display = 'none';
+            if(defaultIcon) defaultIcon.style.display = 'flex';
+        }
+
+        // Populate Form Fields
+        document.getElementById('firstName').value = data.firstName || '';
+        document.getElementById('lastName').value = data.lastName || '';
+        document.getElementById('phoneNumber').value = data.phoneNumber || '';
+        document.getElementById('bio').value = data.bio || '';
+    }
+
+    // --- ACTIVITY LOGIC ---
+    async function loadUserActivity() {
+        const container = document.getElementById('activityList');
+        if (!container) return;
+
+        try {
+            const res = await authenticatedFetch('/api/profile/activity');
+
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+            const activities = await res.json();
+            renderActivityTimeline(activities, container);
+
+        } catch (err) {
+            console.error("Failed to load activity:", err);
+            container.innerHTML = '<p class="empty-msg">Could not load recent activity.</p>';
+        }
+    }
+
+    function renderActivityTimeline(items, container) {
+        container.innerHTML = '';
+
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p class="empty-msg">No recent activity recorded.</p>';
+            return;
+        }
+
+        items.forEach(item => {
+            // Format Date
+            const dateObj = new Date(item.createdAt);
+            const timeStr = dateObj.toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
+            });
+
+            // Map Action Enum to Readable Text
+            let actionText = item.action ? item.action.replace('_', ' ').toLowerCase() : 'Event';
+            actionText = actionText.charAt(0).toUpperCase() + actionText.slice(1);
+
+            const html = `
+                <div class="activity-item">
+                    <div class="activity-dot"></div>
+                    <div class="activity-content">
+                        <h4>${actionText}</h4>
+                        <p>${escapeHtml(item.details || 'System Event')}</p>
+                        <span class="activity-time">${timeStr}</span>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
+    // --- TABS & MY LISTINGS LOGIC ---
+    let listingsLoaded = false;
+
+    function initProfileTabs() {
+        const tabProfile = document.getElementById('tabProfile');
+        const tabListings = document.getElementById('tabListings');
+        const profilePanel = document.getElementById('profilePanel');
+        const listingsPanel = document.getElementById('myListingsPanel');
+        if (!tabProfile || !tabListings || !profilePanel || !listingsPanel) return;
+
+        function activate(showListings) {
+            tabProfile.classList.toggle('active', !showListings);
+            tabListings.classList.toggle('active', showListings);
+            profilePanel.style.display = showListings ? 'none' : '';
+            listingsPanel.style.display = showListings ? '' : 'none';
+            if (showListings && !listingsLoaded) loadMyListings();
+        }
+
+        tabProfile.addEventListener('click', () => activate(false));
+        tabListings.addEventListener('click', () => activate(true));
+    }
+
+    async function loadMyListings() {
+        const grid = document.getElementById('myListingsGrid');
+        const loading = document.getElementById('myListingsLoading');
+        const empty = document.getElementById('myListingsEmpty');
+        const errorBox = document.getElementById('myListingsError');
+        const tabCount = document.getElementById('listingsTabCount');
+        try {
+            const res = await authenticatedFetch('/api/listings/mine');
+            if (!res.ok) throw new Error(`Failed to load listings (${res.status})`);
+            const items = await res.json();
+            listingsLoaded = true;
+
+            // Stats: active / sold counts come from the same payload
+            const activeCount = items.filter(i => i.status === 'ACTIVE').length;
+            const soldCount = items.filter(i => i.status === 'SOLD').length;
+            const statListings = document.getElementById('statListings');
+            const statSold = document.getElementById('statSold');
+            if (statListings) statListings.textContent = activeCount;
+            if (statSold) statSold.textContent = soldCount;
+
+            if (tabCount) {
+                tabCount.style.display = '';
+                tabCount.textContent = items.length;
+            }
+
+            loading.style.display = 'none';
+            if (!items.length) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            errorBox.style.display = 'none';
+            grid.replaceChildren();
+            items.forEach(item => grid.insertAdjacentHTML('beforeend', myListingCard(item)));
+            grid.style.display = 'grid';
+        } catch (err) {
+            loading.style.display = 'none';
+            errorBox.textContent = 'Could not load your listings.';
+            errorBox.style.display = 'block';
+        }
+    }
+
+    function myListingCard(item) {
+        const isSold = item.status === 'SOLD';
+        const isDelisted = item.status === 'DELISTED';
+        let image;
+        if (item.imgUrl) {
+            image = `<img src="${escapeHtml(item.imgUrl)}" alt="">`;
+        } else {
+            image = `<i class="fas fa-image" aria-hidden="true"></i>`;
+        }
+
+        let meta = `Listed ${new Date(item.createdAt).toLocaleDateString()}`;
+        if (isSold && item.buyerUsername) {
+            meta = `Sold to <b>${escapeHtml(item.buyerUsername)}</b> + $${Number(item.price).toFixed(2)}`;
+        } else if (isDelisted && item.statusReason) {
+            meta = escapeHtml(item.statusReason);
+        }
+
+        return `
+            <div class="ml-card">
+                <div class="ml-img">${image}</div>
+                <div class="ml-info">
+                    <span class="ml-status ${item.status}">${item.status.charAt(0) + item.status.slice(1).toLowerCase()}</span>
+                    <span class="ml-title">${escapeHtml(item.title)}</span>
+                    <span class="ml-price">$${Number(item.price).toFixed(2)}</span>
+                    <span class="ml-meta">${meta}</span>
+                    <span class="ml-meta">${new Date(item.createdAt).toLocaleDateString()}</span>
+                    <span class="ml-actions"><a class="btn-view" href="/listing/${item.id}">View</a></span>
+                </div>
+            </div>`;
+    }
+
+    // --- SAVE CHANGES LOGIC ---
+    document.getElementById('editProfileForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!currentSession) {
+            if (window.AppErrors) AppErrors.showToast("Session lost. Reloading...", true); else alert("Session lost. Reloading...");
+            window.location.reload();
+            return;
+        }
+
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const payload = {
+            firstName: document.getElementById('firstName').value,
+            lastName: document.getElementById('lastName').value,
+            phoneNumber: document.getElementById('phoneNumber').value,
+            bio: document.getElementById('bio').value
+        };
+
+        try {
+            const res = await authenticatedFetch('/api/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                showToast("Profile updated successfully!");
+                // Optional: Re-fetch to ensure sync
+                // initProfilePage();
+            } else {
+                const text = await res.text();
+                throw new Error(text || "Update failed");
+            }
+
+        } catch (err) {
+            console.error(err);
+            showToast("Error: " + err.message, true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+        }
+    });
+
+    // --- IMAGE UPLOAD LOGIC ---
+    async function handleImageUpload(inputElement) {
+        const file = inputElement.files[0];
+        if (!file) return;
+
+        if (!currentSession) {
+            if (window.AppErrors) AppErrors.showToast("Session expired.", true); else alert("Session expired.");
+            window.location.href = '/login';
+            return;
+        }
+
+        // Show loading state on button/icon
+        const overlay = document.querySelector('.upload-overlay');
+        const originalHtml = overlay.innerHTML;
+        overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        const formData = new FormData();
+        formData.append('img', file);
+
+        try {
+            const res = await authenticatedFetch('/api/profile/image', {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(errText || "Upload failed");
+            }
+
+            const updatedData = await res.json();
+
+            // Immediately update UI with new image
+            if (updatedData.imgUrl) {
+                 const avatarImg = document.getElementById('avatarImg');
+                 const defaultIcon = document.querySelector('#avatarDisplay i');
+                 avatarImg.src = updatedData.imgUrl;
+                 avatarImg.style.display = 'block';
+                 if(defaultIcon) defaultIcon.style.display = 'none';
+            } else if (updatedData.img && typeof updatedData.img === 'string') {
+                 const mimeType = updatedData.imgtype || 'image/jpeg';
+                 const avatarImg = document.getElementById('avatarImg');
+                 const defaultIcon = document.querySelector('#avatarDisplay i');
+
+                 avatarImg.src = `data:${mimeType};base64,${updatedData.img}`;
+                 avatarImg.style.display = 'block';
+                 if(defaultIcon) defaultIcon.style.display = 'none';
+            }
+
+            showToast("Profile picture updated!");
+
+        } catch (err) {
+            console.error(err);
+            showToast("Error: " + err.message, true);
+        } finally {
+            // Restore icon
+            overlay.innerHTML = originalHtml;
+            inputElement.value = ''; // Reset input so same file can be selected again
+        }
+    }
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        if(!toast) return;
+        toast.textContent = msg;
+        toast.style.background = isError ? '#e74c3c' : '#2ecc71';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+</script>
+
+</div>
+
+<script th:src="@{/js/navbar.js}"></script>
+<script th:src="@{/js/cod-ping.js}"></script>
+
+</body>
+</html>

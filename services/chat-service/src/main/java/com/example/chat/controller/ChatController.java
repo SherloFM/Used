@@ -1,0 +1,51 @@
+package com.example.chat.controller;
+
+import com.example.chat.model.requests.ChatSendRequest;
+import com.example.chat.model.responses.ChatConversationDto;
+import com.example.chat.model.responses.ChatMessageDto;
+import com.example.chat.service.ChatService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/chat")
+@RequiredArgsConstructor
+public class ChatController {
+    private final ChatService chatService;
+
+    @PostMapping("/conversation")
+    public ResponseEntity<ChatConversationDto> getOrCreate(@RequestParam Long listingId, Principal principal) {
+        return ResponseEntity.ok(chatService.getOrCreateConversation(listingId, principal));
+    }
+
+    @GetMapping("/conversations")
+    public ResponseEntity<List<ChatConversationDto>> myConversations(Principal principal) {
+        return ResponseEntity.ok(chatService.getMyConversations(principal));
+    }
+
+    /** Deletes a chat from the CURRENT user's list only (204). */
+    @DeleteMapping("/conversation/{id}")
+    public ResponseEntity<Void> deleteConversation(@PathVariable Long id, Principal principal) {
+        chatService.deleteConversation(id, principal);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/conversation/{id}/messages")
+    public ResponseEntity<List<ChatMessageDto>> messages(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(chatService.getMessages(id, principal));
+    }
+
+    @PostMapping("/conversation/{id}/messages")
+    public ResponseEntity<ChatMessageDto> sendMessage(
+            @PathVariable Long id,
+            @RequestBody ChatSendRequest request,
+            Principal principal
+    ) {
+        request.setConversationId(id);
+        return ResponseEntity.ok(chatService.sendMessage(request, principal));
+    }
+}

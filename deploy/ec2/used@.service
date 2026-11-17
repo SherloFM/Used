@@ -1,0 +1,25 @@
+[Unit]
+Description=Used Marketplace %i
+After=network-online.target docker.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=used
+Group=used
+WorkingDirectory=/opt/used/current
+EnvironmentFile=/etc/used/used.env
+ExecStart=/opt/used/java17/bin/java -Xms64m -Xmx256m -jar /opt/used/current/%i.jar
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=60
+SuccessExitStatus=143
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
