@@ -189,7 +189,7 @@ CREATE TABLE public.listing_reports (
     listing_id bigint NOT NULL,
     reporter_id bigint NOT NULL,
     CONSTRAINT listing_reports_reason_check CHECK (((reason)::text = ANY (ARRAY[('MISLEADING_LISTING'::character varying)::text, ('PROHIBITED_ITEM'::character varying)::text, ('SUSPECTED_SCAM'::character varying)::text, ('INAPPROPRIATE_CONTENT'::character varying)::text, ('DUPLICATE_LISTING'::character varying)::text, ('INCORRECT_INFORMATION'::character varying)::text, ('OTHER'::character varying)::text]))),
-    CONSTRAINT listing_reports_status_check CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('UNDER_REVIEW'::character varying)::text, ('DISMISSED'::character varying)::text, ('ACTION_TAKEN'::character varying)::text])))
+    CONSTRAINT listing_reports_status_check CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('UNDER_REVIEW'::character varying)::text, ('DISMISSED'::character varying)::text, ('ACTION_TAKEN'::character varying)::text, ('DELISTING'::character varying)::text])))
 );
 
 

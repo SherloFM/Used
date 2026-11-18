@@ -18,6 +18,27 @@ PostgreSQL durability enabled. No database reset or migration runs in Jenkins.
 Payment transactions remain entirely within Marketplace; RabbitMQ and Kafka
 retain the contracts in `architecture-decisions.md`.
 
+### Required moderation constraint update
+
+Deployments initialized before the `DELISTING` moderation state was added have a
+`listing_reports_status_check` constraint that rejects the saga's first state
+change. Apply this one-time, transactional patch before deploying the matching
+service release; it preserves all rows and only adds the missing allowed value:
+
+```bash
+cd ~/used && git pull # end
+```
+
+```bash
+sudo /usr/local/bin/docker-compose --env-file /etc/used/used.env -f /etc/used/compose.yaml exec -T postgres psql -v ON_ERROR_STOP=1 -U used -d used < services/moderation-service/src/main/resources/db/allow-delisting-status.sql # end
+```
+
+Verify the constraint before retrying the admin action:
+
+```bash
+sudo /usr/local/bin/docker-compose --env-file /etc/used/used.env -f /etc/used/compose.yaml exec -T postgres psql -U used -d used -c "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'listing_reports_status_check';" # end
+```
+
 ## 1. AWS console
 
 1. Keep using the existing instance in Europe (Stockholm). Confirm 8 GiB RAM and

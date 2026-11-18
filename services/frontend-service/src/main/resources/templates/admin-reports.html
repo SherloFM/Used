@@ -58,6 +58,8 @@
 <script th:src="@{/js/admin-common.js}"></script>
 <script>
     let currentPage = 0;
+    let openReportId = null;
+    let delistRefreshTimer = null;
 
     async function loadReports() {
         const box = document.getElementById('reportsBox');
@@ -95,6 +97,7 @@
     }
 
     async function openReportPanel(reportId) {
+        openReportId = reportId;
         const panel = document.getElementById('reportPanel');
         const box = document.getElementById('reportPanelBox');
         panel.style.display = 'block';
@@ -160,8 +163,8 @@
                     '</div>' +
                     '<div class="mt-1" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">' +
                         '<button class="btn btn-green" onclick="resolveReport(' + report.id + ', \'DISMISS\')"><i class="fas fa-check"></i> Dismiss report</button>' +
-                        '<button class="btn btn-red" onclick="resolveReport(' + report.id + ', \'ACTION\')"><i class="fas fa-gavel"></i> Take action</button>' +
-                        '<label style="font-size:0.9rem;"><input type="checkbox" id="delistCheckbox" style="margin-right:6px;">Also delist the listing (emails the seller)</label>' +
+                        '<button class="btn btn-orange" onclick="resolveReport(' + report.id + ', \'ACTION_ONLY\')"><i class="fas fa-clipboard-check"></i> Resolve without delisting</button>' +
+                        '<button class="btn btn-red" onclick="resolveReport(' + report.id + ', \'DELIST\')"><i class="fas fa-ban"></i> Delist listing</button>' +
                     '</div>' +
                   '</div>'
                 : (report.status === 'DELISTING'
@@ -176,6 +179,8 @@
                     '<button class="btn btn-ghost btn-sm" style="margin-left:6px;" onclick="goToListingReports(' + report.listingId + ')"><i class="fas fa-list"></i> All listings view</button>' +
                 '</div>' +
             '</div>';
+
+        scheduleDelistRefresh(report);
     }
 
     async function markUnderReview(reportId) {
@@ -190,15 +195,14 @@
     }
 
     async function resolveReport(reportId, decision) {
-        if (decision === 'ACTION' && !confirm('This records ACTION_TAKEN and asks Marketplace to delist the listing. The seller is emailed once the listing is actually removed. Continue?')) return;
+        if (decision === 'DELIST' && !confirm('Delist this listing? Marketplace will remove it and the seller will be emailed after the change commits.')) return;
+        if (decision === 'ACTION_ONLY' && !confirm('Resolve this report without removing the listing?')) return;
         const body = {
             decision: decision === 'DISMISS' ? 'DISMISSED' : 'ACTION_TAKEN',
             adminNotes: document.getElementById('adminNotesInput') !== null
                 ? document.getElementById('adminNotesInput').value
                 : null,
-            delistListing: decision === 'ACTION'
-                && document.getElementById('delistCheckbox') !== null
-                && document.getElementById('delistCheckbox').checked
+            delistListing: decision === 'DELIST'
         };
         if (decision === 'DISMISS' && !body.adminNotes) {
             body.adminNotes = null; // optional
@@ -219,7 +223,28 @@
     }
 
     function closeReportPanel() {
+        openReportId = null;
+        clearTimeout(delistRefreshTimer);
         document.getElementById('reportPanel').style.display = 'none';
+    }
+
+    function scheduleDelistRefresh(report) {
+        clearTimeout(delistRefreshTimer);
+        if (!report || report.status !== 'DELISTING' || openReportId !== report.id) return;
+        delistRefreshTimer = setTimeout(async () => {
+            try {
+                const updated = await adminFetch('/api/admin/reports/' + report.id);
+                if (updated.status !== 'DELISTING') {
+                    adminToast('Listing moderation completed: ' + updated.status, 'success');
+                    await openReportPanel(report.id);
+                    loadReports();
+                    return;
+                }
+                scheduleDelistRefresh(updated);
+            } catch (ignored) {
+                if (openReportId === report.id) scheduleDelistRefresh(report);
+            }
+        }, 3000);
     }
 
     function viewOnSite(listingId) {
