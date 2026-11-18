@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Listings - Admin Portal</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/currency.js}"></script>
     <link rel="stylesheet" th:href="@{/css/admin.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/theme.css">
@@ -73,7 +74,7 @@
                 '<tr>' +
                 '<td class="muted">#' + listing.id + '</td>' +
                 '<td><b>' + escapeHtml(listing.title || '--') + '</b></td>' +
-                '<td>$' + Number(listing.price).toFixed(2) + '</td>' +
+                '<td>' + formatPrice(listing.price) + '</td>' +
                 '<td>' + escapeHtml(listing.condition || '--') + '</td>' +
                 '<td>' + statusBadge(listing.status) + '</td>' +
                 '<td class="muted">' + fmtDate(listing.createdAt) + '</td>' +

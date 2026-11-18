@@ -344,10 +344,13 @@ Two recovery rules:
   the gateway rejects is logged as `[WALLET] ... manual refund required`; there is
   no reconciliation job, so that log line is the operator signal.
 
-Amounts are sent to the gateway exactly as the listing price with two decimals.
-The gateway accepts BHD 0.100–5000.000 while the site displays `$`; the currency
-question is unresolved and the code does not convert. Values outside the gateway
-range are rejected before a session is created.
+Amounts are BHD end to end (decided 2026-11-18): listings, the wallet, the
+checkout summary and the admin table all render `BHD 0.000` through
+`static/js/currency.js`, and the listing price is sent to the gateway unchanged.
+No conversion is applied. Because `payments.amount` is `numeric(12,2)`, the
+gateway amount is the price rounded to two decimals; the third decimal the
+gateway accepts is always zero. Values below 0.100 or above 5000.000 are rejected
+before a session is created.
 
 ### Media
 

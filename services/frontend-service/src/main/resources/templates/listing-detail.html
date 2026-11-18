@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Listing Details - Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/currency.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -216,7 +217,7 @@
                         <i class="far fa-star"></i>
                     </button>
                 </div>
-                <div class="price-tag" id="itemPrice">$0.00</div>
+                <div class="price-tag" id="itemPrice">BHD 0.000</div>
             </div>
 
             <ul class="meta-list">
@@ -315,7 +316,7 @@
 
         // 1. Basic Text Fields
         document.getElementById('itemTitle').textContent = data.title;
-        document.getElementById('itemPrice').textContent = `$${parseFloat(data.price).toFixed(2)}`;
+        document.getElementById('itemPrice').textContent = formatPrice(data.price);
         document.getElementById('itemCondition').textContent = data.condition || 'N/A';
         document.getElementById('itemLocation').textContent = data.location || 'N/A';
         document.getElementById('descText').textContent = data.description || 'No description provided.';

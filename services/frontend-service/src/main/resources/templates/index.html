@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/currency.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -617,7 +618,7 @@
              <div class="listing-img">${imgHtml}</div>
              <div class="listing-info">
                  <div class="listing-title">${escapeHtml(item.title)}</div>
-                 <div class="listing-price">$${parseFloat(item.price).toFixed(2)}</div>
+                 <div class="listing-price">${formatPrice(item.price)}</div>
                  <button onclick="viewListingDetails(${item.id})" class="btn-primary" style="width:100%; margin-top:10px; padding:8px;">View Item</button>
              </div>
          `;

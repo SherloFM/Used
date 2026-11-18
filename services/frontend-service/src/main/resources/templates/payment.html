@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout - Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/currency.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -94,9 +95,9 @@
                         <div style="color:#888;" id="summaryMeta">--</div>
                     </div>
                 </div>
-                <div class="summary-row"><span>Price</span><span id="summaryPrice">$0.00</span></div>
-                <div class="summary-row"><span>Fees</span><span>$0.00</span></div>
-                <div class="summary-row total"><span>Total</span><span id="summaryTotal">$0.00</span></div>
+                <div class="summary-row"><span>Price</span><span id="summaryPrice">BHD 0.000</span></div>
+                <div class="summary-row"><span>Fees</span><span>BHD 0.000</span></div>
+                <div class="summary-row total"><span>Total</span><span id="summaryTotal">BHD 0.000</span></div>
             </div>
         </div>
     </div>
@@ -156,8 +157,8 @@
             document.getElementById('summaryTitle').textContent = listing.title;
             document.getElementById('summaryMeta').textContent = (listing.condition||'') + ' • ' + (listing.location||'');
             const price = parseFloat(listing.price||0);
-            document.getElementById('summaryPrice').textContent = '$' + price.toFixed(2);
-            document.getElementById('summaryTotal').textContent = '$' + price.toFixed(2);
+            document.getElementById('summaryPrice').textContent = formatPrice(price);
+            document.getElementById('summaryTotal').textContent = formatPrice(price);
             const imgWrap = document.getElementById('summaryImg');
             if (listing.imgUrl) {
                 imgWrap.innerHTML = '<img src="'+listing.imgUrl+'" alt="" onerror="checkoutImageFailed(this)">';
@@ -167,7 +168,7 @@
             const wres = await authenticatedFetch('/api/wallet');
             if (wres.ok) {
                 const w = await wres.json();
-                document.getElementById('walletBalance').textContent = 'Balance: $' + Number(w.balance).toFixed(2);
+                document.getElementById('walletBalance').textContent = 'Balance: ' + formatPrice(w.balance);
             }
         } catch(e) { console.error(e); }
 

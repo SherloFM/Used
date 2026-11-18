@@ -156,8 +156,9 @@ and the buyer appears logged out.
 
 Gateway payments are settlement records, not a wallet top-up: the buyer pays on
 the gateway, and only the seller's Marketplace balance is credited when the sale
-completes. The gateway accepts BHD 0.100–5000.000; the site currently still shows
-`$`, and no conversion is applied.
+completes. Prices are BHD throughout and are sent to the gateway unchanged, so a
+listing below 0.100 or above 5000.000 cannot be paid through the gateway and the
+checkout says so instead of creating a session.
 
 ## 5. Start infrastructure and initialize the empty database
 

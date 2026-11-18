@@ -36,7 +36,9 @@
                     <div style="color:#666;font-size:0.85rem;">
                         ${esc(data.buyerName)} wants "${esc(data.listingTitle)}"</div>
                     <div style="color:#27ae60;font-weight:700;font-size:0.9rem;">
-                        $${Number(data.amount).toFixed(2)}</div>
+                        ${typeof formatPrice === 'function'
+                            ? formatPrice(data.amount)
+                            : 'BHD ' + Number(data.amount || 0).toFixed(3)}</div>
                 </div>
             </div>
             <div style="display:flex;gap:8px;">

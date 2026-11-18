@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/currency.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -577,7 +578,7 @@
             if (!res.ok) throw new Error('Could not load your wallet balance.');
             const wallet = await res.json();
             const value = Number(wallet.balance);
-            balanceEl.textContent = '$' + (Number.isFinite(value) ? value.toFixed(2) : '0.00');
+            balanceEl.textContent = formatPrice(Number.isFinite(value) ? value : 0);
         } catch (err) {
             balanceEl.textContent = '--';
             if (errorEl) {
@@ -725,7 +726,7 @@
 
         let meta = `Listed ${new Date(item.createdAt).toLocaleDateString()}`;
         if (isSold && item.buyerUsername) {
-            meta = `Sold to <b>${escapeHtml(item.buyerUsername)}</b> + $${Number(item.price).toFixed(2)}`;
+            meta = `Sold to <b>${escapeHtml(item.buyerUsername)}</b> + ${formatPrice(item.price)}`;
         } else if (isDelisted && item.statusReason) {
             meta = escapeHtml(item.statusReason);
         }
@@ -736,7 +737,7 @@
                 <div class="ml-info">
                     <span class="ml-status ${item.status}">${item.status.charAt(0) + item.status.slice(1).toLowerCase()}</span>
                     <span class="ml-title">${escapeHtml(item.title)}</span>
-                    <span class="ml-price">$${Number(item.price).toFixed(2)}</span>
+                    <span class="ml-price">${formatPrice(item.price)}</span>
                     <span class="ml-meta">${meta}</span>
                     <span class="ml-meta">${new Date(item.createdAt).toLocaleDateString()}</span>
                     <span class="ml-actions"><a class="btn-view" href="/listing/${item.id}">View</a></span>
