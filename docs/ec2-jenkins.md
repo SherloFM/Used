@@ -209,29 +209,37 @@ not automatically exist on EC2.
 1. Browse to `http://PUBLIC_IP:8090` from the IP allowed by the security group.
 2. In the EC2 terminal run `sudo cat /var/lib/jenkins/secrets/initialAdminPassword`.
    Enter it only in Jenkins. Install suggested plugins and create an admin user.
-3. Ensure Pipeline, Git, JUnit and Timestamper plugins are installed.
-4. Manage Jenkins → Nodes → Built-In Node → Configure:
+3. Ensure Pipeline, Git, Docker, Docker Pipeline, JUnit and Timestamper plugins
+   are installed.
+4. In the EC2 terminal run `sudo usermod -aG docker jenkins` and then
+   `sudo systemctl restart jenkins`. The isolated PostgreSQL stage starts a
+   throwaway Testcontainers database through the Docker socket. The installer
+   applies this group change on a fresh host; these two commands update an
+   already-installed host.
+5. Manage Jenkins → Nodes → Built-In Node → Configure:
    - Number of executors: **1**.
    - Labels: **used-ec2**.
    - Usage: only build jobs with label expressions matching this node.
    Running this trusted job on the controller is a resource-limited demo tradeoff;
    use a separate agent for a larger/shared installation.
-5. For a private repo, Manage Jenkins → Credentials: add read-only GitHub SCM
+6. For a private repo, Manage Jenkins → Credentials: add read-only GitHub SCM
    credentials (HTTPS token as username/password, or SSH key with SSH repo URL).
-6. New Item → `used-marketplace` → **Pipeline**.
-7. Definition: **Pipeline script from SCM**; SCM: Git.
-8. Repository: `https://github.com/SherloFM/Used.git`; select credentials if needed.
-9. Branch specifier: **`*/master`**; Script path: **`Jenkinsfile`**.
-   This is a single trusted-branch job, not a pull-request/multibranch job.
-10. Save → **Build Now**. The first run installs the polling trigger. Thereafter
+7. New Item → `used-marketplace` → **Pipeline**.
+8. Definition: **Pipeline script from SCM**; SCM: Git.
+9. Repository: `https://github.com/SherloFM/Used.git`; select credentials if needed.
+10. Branch specifier: **`*/master`**; Script path: **`Jenkinsfile`**.
+    This is a single trusted-branch job, not a pull-request/multibranch job.
+11. Save → **Build Now**. The first run installs the polling trigger. Thereafter
     Jenkins polls GitHub every five minutes and builds only when SCM changes.
     No publicly accessible GitHub webhook is required.
 
 The pipeline checks out a clean workspace, builds sequentially, runs the existing
-per-service unit/Cucumber MockMvc tests, publishes JUnit results, archives all
-nine JARs, switches the release symlink and restarts each service independently.
-Java tests run without runtime production secrets. Selenium `e2e-tests` is
-explicitly excluded: its runner has not yet been proven to execute.
+per-service unit/Cucumber MockMvc tests, rejects tracked secrets, runs the
+dedicated PostgreSQL concurrency tests in their own Docker-backed stage, publishes
+JUnit results, archives all nine JARs, switches the release symlink and restarts
+each service independently. Java tests run without runtime production secrets.
+Selenium `e2e-tests` is explicitly excluded: its runner has not yet been proven
+to execute.
 
 The deployment checks all nine aggregate health endpoints and the gateway,
 including blocked internal routes. Failure restores and checks the previous
@@ -240,7 +248,68 @@ is untouched. A deployment is not zero-downtime, and rollback cannot undo data
 writes made while the failed version was running. SMTP failure also triggers
 rollback. Review `/opt/used/health-last.log` and service journals for diagnosis.
 
-## 7. HTTPS
+## 7. Monitoring and CloudWatch
+
+`install-host.sh` installs `used-monitor.timer`. Every minute it checks all nine
+service health endpoints and the gateway, measures root-disk and memory usage,
+and writes one structured line to journald:
+
+```bash
+systemctl status used-monitor.timer --no-pager # end
+```
+
+```bash
+journalctl -u used-monitor.service -n 20 --no-pager # end
+```
+
+This local monitoring works without AWS permissions. To publish the same values
+to CloudWatch, attach an EC2 instance role with this minimum policy (scope it
+further through your AWS account controls where appropriate):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": "cloudwatch:PutMetricData",
+    "Resource": "*",
+    "Condition": {"StringEquals": {"cloudwatch:namespace": "UsedMarketplace"}}
+  }]
+}
+```
+
+Confirm AWS CLI v2 is available, then edit `/etc/used/monitoring.env`:
+
+```text
+CLOUDWATCH_ENABLED=true
+CLOUDWATCH_NAMESPACE=UsedMarketplace
+AWS_REGION=eu-north-1
+```
+
+Run one check and inspect the result:
+
+```bash
+sudo systemctl start used-monitor.service && sudo systemctl status used-monitor.service --no-pager # end
+```
+
+The custom metrics are `HealthyServices`, `GatewayHealthy`, `DiskUsedPercent`,
+and `MemoryUsedPercent`, dimensioned by EC2 instance ID. To create alarms, first
+add `cloudwatch:PutMetricAlarm` to the setup operator (not necessarily the EC2
+runtime role), then run from the checkout:
+
+```bash
+AWS_REGION=eu-north-1 sudo -E bash deploy/ec2/create-cloudwatch-alarms.sh # end
+```
+
+Optionally set `SNS_TOPIC_ARN` to a confirmed SNS topic before running the script
+to attach alarm and recovery notifications. Creating an alarm without an action
+records state in CloudWatch but sends no email.
+
+This is basic host/application monitoring, not distributed tracing. RabbitMQ
+queue depth, Kafka consumer lag, JVM metrics, and centralized log search remain
+future improvements.
+
+## 8. HTTPS
 
 The site is served over plain HTTP until a certificate exists. A browser on a
 network that blocks outbound TCP 80 needs HTTPS, so this step is what makes the
@@ -319,7 +388,7 @@ Then load the site in a browser, log in, and confirm the `used_auth` cookie is
 `Secure` in devtools. Renewal is only proven after the first renewal window;
 `certbot renew --dry-run` is the explicit check.
 
-## 8. Verify, then enable application boot startup
+## 9. Verify, then enable application boot startup
 
 After the first successful Jenkins deployment, open `http://PUBLIC_IP` and test
 registration, login, listing/image creation and a payment with demo funds.
@@ -359,8 +428,11 @@ both timed out without results; they are **not passing evidence**. The restore
 attempt may have left a temporary database named `used_schema_verify_<8 hex>` in
 the local Docker PostgreSQL instance; inspect and remove that test database once
 the local Docker commands respond. It does not target the `used` database.
-No new Java build/test run, upstream simulation, AWS deployment, or Jenkins run
-has been performed for these deployment-file changes.
+For the 2026-11-19 documentation/CI changes, local Git whitespace validation,
+Bash syntax validation, the tracked-secret check, and Marketplace test compilation
+passed. The PostgreSQL stage and its Testcontainers runtime could not be executed
+locally because the local Docker daemon returned HTTP 500. No AWS deployment,
+Jenkins run, or live workflow verification is part of this local change.
 
 Run the deployment orchestration checks on Linux with
 `bash deploy/ec2/tests/deployment-checks.sh`. They use temporary release trees

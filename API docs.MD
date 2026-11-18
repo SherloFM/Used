@@ -1,197 +1,276 @@
-# API Documentation: Used Marketplace
+# Used Marketplace API Reference
 
-This document outlines the RESTful endpoints available in the application.
-Base URL: `http://localhost:8080`
+## Origins and routing
 
-Every path below is served by the gateway on that single origin, which routes it
-to the owning service. `/api/internal/**` and `/actuator/**` are not reachable
-through it. See [Gateway](docs/gateway.md).
+| Environment | Base URL |
+|---|---|
+| Production | `https://used.thrifty.bid` |
+| Local gateway | `http://localhost:8080` |
 
+All browser requests use the NGINX gateway. `/api/internal/**` and
+`/actuator/**` are deliberately unavailable at the public edge.
 
-## 🔐 Authentication (`/auth/user`)
+## Authentication and CSRF
 
-| Request | Method | Endpoint | Description | Auth Required? |
-| :--- | :---: | :--- | :--- | :---: |
-| Register User | `POST` | `/auth/user/register` | Creates a new user account. Sends verification email. | ❌ No |
-| Verify Email | `POST` | `/auth/user/verify` | Validates the 6-digit code sent to user's email. Activates account. | ❌ No |
-| Resend Code | `POST` | `/auth/user/resend-verify` | Triggers a new verification email (Rate-limited to 60s). | ❌ No |
-| Login | `POST` | `/auth/user/login` | Authenticates user and returns a JWT Token. | ❌ No |
-| Forget Password | `POST` | `/auth/user/forget-password` | Initiates password reset flow via email. | ❌ No |
-| Reset Password | `POST` | `/auth/user/reset-password` | Sets new password using reset code. | ❌ No |
-| Change Password | `PUT` | `/auth/user/change-password` | Updates password for logged-in user. | ✅ Yes |
+Login and successful email verification issue a signed JWT in the HttpOnly
+`used_auth` cookie. JavaScript never reads or stores the token. Protected calls
+must include cookies:
 
-## 📦 Listings (`/api/listings`)
-
-| Request | Method | Endpoint | Description | Auth Required? |
-| :--- | :---: | :--- | :--- | :---: |
-| Create Listing | `POST` | `/api/listings` | Adds a new item to the marketplace. | ✅ Yes |
-| Get All Listings | `GET` | `/api/listings` | Returns listings across all statuses; use search for active listings. | ✅ Yes |
-| Get Single Listing | `GET` | `/api/listings/{id}` | Fetches details for a specific item ID. | ❌ No |
-| Update Listing | `PUT` | `/api/listings/{id}` | Edits title, price, description, etc. Owner only. | ✅ Yes |
-| Delete Listing | `DELETE` | `/api/listings/{id}` | Delists an active listing. Owner only; admins use the separate endpoint. | ✅ Yes |
-| My Listings | `GET` | `/api/listings/mine` | All of the current user's listings with status. SOLD rows carry `buyerUsername`, DELISTED rows carry `statusReason`. | ✅ Yes |
-| Admin Delete | `DELETE` | `/api/listings/admin/{id}` | Force remove listing (Admin privilege). | ✅ Admin |
-| Upload Image | `PUT` | `/api/listings/{id}/image` | Attaches/updates the main photo for a listing. | ✅ Yes |
-| Buy Item | `POST` | `/api/listings/{id}/buy` | Executes a purchase transaction. Marks item as SOLD. | ✅ Yes |
-| Search/Filter | `GET` | `/api/listings/search` | Unified endpoint for keyword search, category filtering, sorting, and pagination. Params: `keyword`, `categoryIds`, `sortBy`, `sortDir`, `page`, `size`. | ❌ No |
-
-## 🏷️ Categories (`/api/categories`)
-
-| Request | Method | Endpoint | Description | Auth Required? |
-| :--- | :---: | :--- | :--- | :---: |
-| List Categories | `GET` | `/api/categories` | Returns all available tags/categories for filtering. | ❌ No |
-| Get Category | `GET` | `/api/categories/{id}` | Fetches specific category details. | ❌ No |
-| Create Category | `POST` | `/api/categories` | Adds a new global category tag. | ✅ Admin |
-| Delete Category | `DELETE` | `/api/categories/{id}` | Removes a category tag. | ✅ Admin |
-
-## 👤 Profile & Activity (`/api/profile`)
-
-| Request | Method | Endpoint | Description | Auth Required? |
-| :--- | :---: | :--- | :--- | :---: |
-| Get My Profile | `GET` | `/api/profile` | Fetches current user's profile data (Bio, Phone, Stats). | ✅ Yes |
-| Update Profile | `PUT` | `/api/profile` | Saves changes to First Name, Last Name, Bio, Phone. | ✅ Yes |
-| Upload Avatar | `PUT` | `/api/profile/image` | Updates the user's profile picture. | ✅ Yes |
-| Get Activity Log | `GET` | `/api/profile/activity` | Returns chronological list of Audit Logs for the user. | ✅ Yes |
-
-## 🔔 Real-Time Notifications (`/api/notifications`)
-
-| Request | Method | Endpoint | Description | Auth Required? |
-| :--- | :---: | :--- | :--- | :---: |
-| Subscribe Stream | `GET` | `/api/notifications/stream` | Opens an SSE connection for real-time events. Requires `?token=JWT`. | ✅ Yes |
-| History | `GET` | `/api/notifications?page=0&size=20` | Returns a list of persisted notifications for the current user. | ✅ Yes |
-| Unread count | `GET` | `/api/notifications/unread-count` | Returns `{"count": 3}`. | ✅ Yes |
-| Mark read | `PUT` | `/api/notifications/{id}/read` | Marks own notification read; 204. | ✅ Yes |
-| Mark all read | `PUT` | `/api/notifications/read-all` | Marks own notifications read; 204. | ✅ Yes |
-
-## Authentication and response conventions
-
-Send `Authorization: Bearer <token>` on protected API calls. Login success returns
-`{"message":"<JWT>","role":"USER"}` (or `ADMIN`). HTML routing is separate:
-users go to `/`, admins to `/admin`. HTML page access does not grant API access.
-Do not treat an HTML redirect as an API authorization check.
-
-Business errors generally return `{"message":"..."}`: 400 for invalid actions,
-404 for missing resources, 429 for rate limits. Authentication failures may be
-401 or 403 with a different Spring error shape. Display a fallback message when
-`message` is absent. Do not automatically retry purchases or report submissions.
-
-## Favorites — authenticated
-
-| Method | Endpoint | Success / behavior |
-| --- | --- | --- |
-| POST | `/api/favorites/{listingId}` | 200, FavoriteResponse; rejects own listing and duplicate favorite with 400 |
-| DELETE | `/api/favorites/{listingId}` | 204; absent favorite is 404 |
-| GET | `/api/favorites?page=0&size=12` | Page of FavoriteResponse, newest saved first |
-| GET | `/api/favorites/{listingId}/check` | `{"favorited":true}` for current user |
-| GET | `/api/favorites/{listingId}/count` | `{"count":2}` |
-
-FavoriteResponse example:
-```json
-{"id":1,"listingId":34,"listingTitle":"Camera","listingPrice":100.0,"listingStatus":"ACTIVE","listingImgUrl":null,"createdAt":"2026-10-28T12:00:00"}
+```javascript
+fetch('/api/profile', { credentials: 'include' })
 ```
-The page response contains `content`, `number` (zero-based), `size`, `totalElements`,
-`totalPages`, `first`, and `last`. The `/favorites` HTML page uses this pagination.
-Images stored only as binary listing uploads may have a null `listingImgUrl`.
-Sale/delist flows remove existing favorites and notify their owners. Concurrent
-favorite creation during sale is serialized on the listing row lock; a save
-arriving while an item is being purchased is either rejected or removed by the
-sale cleanup, never left behind.
 
-## Reports — authenticated
+Browser state-changing requests also require CSRF protection:
 
-| Method | Endpoint | Success / behavior |
-| --- | --- | --- |
-| POST | `/api/reports` | 200, newly created report |
-| GET | `/api/reports/mine?page=0&size=10` | Current user's reports, paginated; excludes internal admin fields |
-| GET | `/api/admin/reports?status=PENDING&page=0&size=20` | Admin queue; status optional |
-| GET | `/api/admin/reports/{id}` | Admin detail with internal notes |
-| GET | `/api/admin/reports/listing/{listingId}` | List of reports for listing |
-| PUT | `/api/admin/reports/{id}/status` | No body; PENDING → UNDER_REVIEW |
-| PUT | `/api/admin/reports/{id}/resolve` | Resolve and optionally delist |
+1. `GET /auth/user/csrf` returns `{ "headerName": "X-XSRF-TOKEN", "token": "..." }`.
+2. Send that token in `X-XSRF-TOKEN` with POST, PUT, PATCH, and DELETE requests.
+3. Continue sending `credentials: "include"`.
 
-Submit body:
-```json
-{"listingId":34,"reason":"SUSPECTED_SCAM","description":"Details to investigate"}
-```
-Reasons: `MISLEADING_LISTING`, `PROHIBITED_ITEM`, `SUSPECTED_SCAM`,
-`INAPPROPRIATE_CONTENT`, `DUPLICATE_LISTING`, `INCORRECT_INFORMATION`, `OTHER`.
-Description is optional, maximum 1000 characters. Own-listing and duplicate open
-reports return 400. Five reports in a rolling 24-hour window triggers 429.
-Sold/delisted listings may still be reported. A dismissed report permits re-reporting.
+The frontend's `authenticatedFetch` helper performs this exchange. The public
+Almotawaj callback is CSRF-exempt because it authenticates with
+`X-Wallet-Signature`, not a browser session.
 
-Resolve body:
-```json
-{"decision":"ACTION_TAKEN","adminNotes":"Reviewed by moderation","delistListing":true}
-```
-Decision is `DISMISSED` or `ACTION_TAKEN`; notes are optional, max 1000 characters.
-Already resolved reports cannot be resolved again. Sold listings cannot be delisted;
-the report can still resolve with an explanatory admin note. All `/api/admin/reports`
-operations require ADMIN.
+Common responses:
 
-## Images (Media) — internal upload, public read
+| Status | Meaning |
+|---:|---|
+| 200/201/202/204 | Successful, created, accepted for asynchronous work, or no body |
+| 400 | Invalid input or business rule rejection |
+| 401 | Authentication or callback signature missing/invalid |
+| 403 | Wrong role or invalid CSRF token |
+| 404 | Resource not found or intentionally hidden |
+| 409 | Conflicting state where explicitly returned |
+| 413 | Image exceeds the multipart limit |
+| 429 | Rate limit exceeded |
+
+Business errors generally use `{ "message": "..." }`.
+
+## Accounts and sessions
+
+Base path: `/auth/user`
 
 | Method | Endpoint | Access | Behavior |
-| --- | --- | --- | --- |
-| POST | `/api/internal/media` | `X-Internal-Token` | Multipart `ownerId` + `file`; returns `201` and an immutable URL |
-| GET | `/api/media/{id}` | Public | Returns JPEG/PNG bytes with long-lived caching and `ETag` |
+|---|---|---|---|
+| POST | `/register` | Public | Creates an unverified account and sends a six-digit code |
+| POST | `/verify` | Public | Verifies email, issues cookies, and signs the member in |
+| POST | `/resend-verify` | Public | Resends after the configured cooldown |
+| POST | `/login` | Public | Issues `used_auth`; response contains message and role, never the token |
+| GET | `/csrf` | Public | Creates/returns the CSRF token used by browser writes |
+| GET | `/session` | Member | Returns `{id, username, role}` with `Cache-Control: no-store` |
+| POST | `/logout` | Member | Clears authentication and CSRF state; returns 204 |
+| POST | `/forget-password` | Public | Sends a password-reset code |
+| POST | `/reset-password` | Public | Resets with a valid code |
+| PUT | `/change-password` | Member | Changes the current member's password |
 
-Browser uploads still use `PUT /api/profile/image` and
-`PUT /api/listings/{id}/image`; those services check ownership, call Media, and
-store only the returned `imgUrl`. JPEG and PNG up to 5 MB are accepted. Media
-verifies the actual bytes and rejects corrupt, unsupported, or oversized images
-with `400`/`413`. Profile and listing responses expose `imgUrl`; old inline
-`img`/`imgtype` values remain as a fallback. See
-[Media service](docs/media-service.md).
+## Profile and activity
 
-## Payments and wallet — authenticated
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/profile` | Member | Current profile |
+| PUT | `/api/profile` | Member | Update name, phone, and biography |
+| PUT | `/api/profile/image` | Member | Multipart field `img`; updates profile image |
+| GET | `/api/profile/activity` | Member | Current member's audit timeline |
 
-| Method | Endpoint | Behavior |
-| --- | --- | --- |
-| POST | `/api/payments/{listingId}?method=WALLET` | 202; accepts asynchronous payment |
-| GET | `/api/payments/{id}` | Payment status for polling |
-| GET | `/api/payments/cod/pending` | Seller's pending COD requests |
-| POST | `/api/payments/{id}/cod/accept` | Seller accepts queued COD request |
-| POST | `/api/payments/{id}/cod/decline` | Seller declines COD request |
-| GET | `/api/wallet` | Current wallet |
-| POST | `/api/wallet/admin/{userId}/fund` | **Admin only.** Add funds to the selected user's wallet with an amount body, e.g. `{"amount":100.00}` |
+Phone images are oriented, resized, and converted to JPEG in the browser before
+upload. Accounts enforces a 5 MB file limit and forwards validated ownership to
+Media.
 
-Members cannot add or remove their own wallet funds. Administrators fund a
-member from the Users page in the admin portal; payment debits and seller
-credits remain part of Marketplace's atomic payment transaction.
+## Listings
 
-Payment acceptance example: `{"paymentId":42,"duplicate":false,"queuePosition":1}`.
-**202 is not payment completion.** Poll for `COMPLETED` or `FAILED`. Methods are
-`WALLET` (default) and `COD`; `CARD` currently returns 400. COD expires after five
-minutes if unanswered. Wallet jobs now use Kafka (`payment-requests`, keyed by
-listing ID); 202 means the payment was recorded, not that Kafka confirmed delivery.
-Pending-payment recovery retries missed publication. Exhausted/invalid jobs are
-quarantined in `payment-requests.DLT`; matching pending wallet payments become
-FAILED with reason `KAFKA_DLT`. See [Kafka payment processing](docs/kafka-payments.md).
-A competing wallet purchase
-may be rejected before a payment row is created, or fail asynchronously.
-The legacy `/api/listings/{id}/buy` route is not the wallet-payment workflow.
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/listings` | Public | Listings across statuses |
+| GET | `/api/listings/{id}` | Public | Listing detail |
+| GET | `/api/listings/search` | Public | Active listings with pagination and filters |
+| GET | `/api/listings/mine` | Member | Current seller's listings across statuses |
+| POST | `/api/listings` | Member | Create a listing |
+| PUT | `/api/listings/{id}` | Owner | Update an active listing |
+| PUT | `/api/listings/{id}/image` | Owner | Multipart field `img`; add or replace image |
+| DELETE | `/api/listings/{id}` | Owner | Idempotent business delist for the owner |
+| DELETE | `/api/listings/admin/{id}` | Admin | Administrator delist |
+| POST | `/api/listings/{id}/buy` | Member | Legacy synchronous purchase path |
 
-## Administration and chat
+Search parameters:
 
-ADMIN: `GET /api/admin/users`, `GET /api/admin/users/{id}`,
-`PUT /api/admin/users/{id}/ban`, `PUT /api/admin/users/{id}/unban`,
-`DELETE /api/admin/users/{id}`. Portal pages: `/admin`, `/admin/users`,
-`/admin/listings`, `/admin/reports`.
+| Parameter | Default | Meaning |
+|---|---|---|
+| `keyword` | empty | Case-insensitive title search |
+| `categoryIds` | empty | Repeated category IDs; listing must match all selected IDs |
+| `sortBy` | service default | Allowed listing sort field |
+| `sortDir` | `asc` | `asc` or `desc` |
+| `page` | `0` | Zero-based page |
+| `size` | `12` | Page size |
 
-Chat: `POST /api/chat/conversation?listingId={id}` creates/gets a conversation;
-`GET /api/chat/conversations` lists the current user's conversations;
-`GET /api/chat/conversation/{id}/messages` reads messages;
-`POST /api/chat/conversation/{id}/messages` sends a message. These require authentication
-and conversation membership. `DELETE /api/chat/conversation/{id}` removes the
-conversation from the CURRENT user's chat list only (204) — the other participant
-keeps theirs, and a new message makes the chat reappear for its recipient.
+Create/update bodies use listing fields such as `title`, `description`, `price`,
+`condition`, `location`, and `categories: [{"id": 1}]`. Seller identity is taken
+from the cookie, never trusted from the body.
 
-## SSE delivery
+## Categories
 
-Notifications persist in the existing `notifications` table. Live delivery happens
-after transaction commit, not on rollback. Named events are also delivered as
-`NOTIFICATION`; clients should deduplicate by `notificationId`. SSE event IDs support
-reconnection replay via `Last-Event-ID`. History remains the durable source of truth.
-Saved-listing events include `LISTING_UPDATED` and `LISTING_UNAVAILABLE`; existing COD
-events remain supported. Email delivery is best-effort after commit for favorite removal;
-an SMTP failure is logged and does not reverse the completed transaction.
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/api/categories` | Public |
+| GET | `/api/categories/{id}` | Public |
+| POST | `/api/categories` | Admin |
+| DELETE | `/api/categories/{id}` | Admin |
+
+## Favorites
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/favorites/{listingId}` | Member | Save an active listing; rejects own/duplicate save |
+| DELETE | `/api/favorites/{listingId}` | Member | Remove own favorite |
+| GET | `/api/favorites?page=0&size=12` | Member | Paginated favorites |
+| GET | `/api/favorites/{listingId}/check` | Member | `{ "favorited": true }` |
+| GET | `/api/favorites/{listingId}/count` | Member | `{ "count": 2 }` |
+
+RabbitMQ `listing.updated`, `listing.sold`, and `listing.delisted` events reconcile
+saved snapshots. Sold/delisted favorites are removed asynchronously.
+
+## Reports and moderation
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/reports` | Member | Submit a listing report |
+| GET | `/api/reports/mine?page=0&size=10` | Member | Own reports without internal notes |
+| GET | `/api/admin/reports` | Admin | Paginated queue; optional `status` |
+| GET | `/api/admin/reports/{id}` | Admin | Report detail |
+| GET | `/api/admin/reports/listing/{listingId}` | Admin | Report history for a listing |
+| PUT | `/api/admin/reports/{id}/status` | Admin | `PENDING → UNDER_REVIEW` |
+| PUT | `/api/admin/reports/{id}/resolve` | Admin | Dismiss, resolve, or start delisting |
+
+Submit example:
+
+```json
+{
+  "listingId": 34,
+  "reason": "SUSPECTED_SCAM",
+  "description": "The seller requests payment outside the platform."
+}
+```
+
+Resolve and delist:
+
+```json
+{
+  "decision": "ACTION_TAKEN",
+  "adminNotes": "Confirmed policy violation.",
+  "delistListing": true
+}
+```
+
+With `delistListing: true`, the report first commits as `DELISTING`. RabbitMQ
+sends an idempotent command to Marketplace. The result changes the report to
+`ACTION_TAKEN`; a transient failure remains `DELISTING` for the retry scheduler.
+
+## Payments
+
+### Internal wallet and COD
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/payments/{listingId}?method=WALLET` | Member | Returns 202 after recording payment work |
+| POST | `/api/payments/{listingId}?method=COD` | Member | Queues a COD request |
+| GET | `/api/payments/{id}` | Participant | Poll payment state |
+| GET | `/api/payments/cod/pending` | Seller | Pending requests for owned listings |
+| POST | `/api/payments/{id}/cod/accept` | Seller | Accept COD request |
+| POST | `/api/payments/{id}/cod/decline` | Seller | Decline COD request |
+
+`202 Accepted` is not completion. Wallet requests are distributed through Kafka
+topic `payment-requests`, keyed by `listingId`. Poll until `COMPLETED` or `FAILED`.
+Retries and recovery can redeliver work; execution is idempotent.
+
+### Almotawaj Wallet
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/payments/{listingId}/gateway` | Member | Creates a checkout session; returns 201 and `checkoutUrl` |
+| GET | `/api/payments/{id}/gateway?sessionId=...` | Buyer | Verifies returned session and completes paid order |
+| POST | `/api/payments/gateway/callback` | Signed gateway | HMAC-authenticated server callback |
+
+The external gateway is represented by payment method `CARD` internally, but no
+card details are collected by Used Marketplace. Amounts are BHD. Completion
+credits the seller without debiting the buyer's internal wallet because the buyer
+already paid externally.
+
+## Wallet
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/wallet` | Member | Current member's balance |
+| POST | `/api/wallet/admin/{userId}/fund` | Admin | Atomic credit to selected member |
+
+Funding body:
+
+```json
+{ "amount": 25.00 }
+```
+
+Members cannot modify their own balances. Payment debits and seller credits are
+performed only by Marketplace's transaction logic.
+
+## Notifications
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| GET | `/api/notifications/stream` | Member cookie | SSE stream; no query-string JWT |
+| GET | `/api/notifications?page=0&size=20` | Member | Persisted history |
+| GET | `/api/notifications/unread-count` | Member | Unread count |
+| PUT | `/api/notifications/{id}/read` | Owner | Mark one read; 204 |
+| PUT | `/api/notifications/read-all` | Member | Mark all read; 204 |
+
+SSE uses the same-origin `used_auth` cookie. Event IDs support reconnection; the
+history endpoint remains the durable source of truth.
+
+## Chat
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/chat/conversation?listingId={id}` | Member | Create/get conversation |
+| GET | `/api/chat/conversations` | Member | Visible conversation list |
+| GET | `/api/chat/conversation/{id}/messages` | Participant | Message history |
+| POST | `/api/chat/conversation/{id}/messages` | Participant | Send message |
+| DELETE | `/api/chat/conversation/{id}` | Participant | Hide from current member only |
+
+WebSocket/STOMP connects through `/ws` using the same authenticated origin.
+
+## Administration
+
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/api/admin/users` | Admin |
+| GET | `/api/admin/users/{id}` | Admin |
+| PUT | `/api/admin/users/{id}/ban` | Admin |
+| PUT | `/api/admin/users/{id}/unban` | Admin |
+| DELETE | `/api/admin/users/{id}` | Admin |
+
+Admin HTML routes are `/admin`, `/admin/users`, `/admin/listings`, and
+`/admin/reports`. UI visibility is not the authorization boundary; every API
+endpoint enforces the role server-side.
+
+## Media service
+
+Browser callers upload through Accounts or Marketplace. Internal callers use:
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| POST | `/api/internal/media` | `X-Internal-Token` | Multipart `ownerId` and `file`; returns 201 |
+| GET | `/api/media/{uuid}` | Public | Immutable JPEG/PNG with ETag and long cache |
+
+Media validates bytes rather than trusting the extension. Maximum stored size is
+5 MB; maximum dimensions are 8000×8000 and 40 megapixels. Stored paths are
+relative (`/api/media/{uuid}`) so they work on local and production origins.
+
+## Internal service endpoints
+
+These are not routed through NGINX and require `X-Internal-Token`:
+
+- Accounts: `GET /api/internal/users/{id}`
+- Marketplace: `GET /api/internal/listings/{id}` and
+  `POST /api/internal/listings/{id}/delist`
+- Media: `POST /api/internal/media`
+- Notification: internal push, broadcast, and email commands
+- Audit: internal log and activity operations
+
+See [architecture decisions](docs/architecture-decisions.md) for timeout,
+messaging, consistency, and security guarantees.

@@ -62,8 +62,8 @@
 - **As a seller**, I want to accept or decline queued COD requests; unanswered requests expire.
 - **As a user**, I want notifications to remain available after reconnecting.
   - Acceptance: persisted history and read state remain available; SSE publishes after commit and clients deduplicate replayed notification IDs.
-+- **As a chat participant**, I want to delete a conversation from my own chat list without affecting the other person.
-+  - Acceptance: the chat disappears from my list only; sending a new message brings it back for the recipient so no message is ever lost.
+- **As a chat participant**, I want to delete a conversation from my own chat list without affecting the other person.
+  - Acceptance: the chat disappears from my list only; sending a new message brings it back for the recipient so no message is ever lost.
 
 ## Epic: Consistent and accessible navigation
 - **As a keyboard user**, I want visible focus and descriptive icon-button labels.

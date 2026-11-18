@@ -1,0 +1,12 @@
+[Unit]
+Description=Used Marketplace health and CloudWatch metrics
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/used/monitoring.env
+ExecStart=/usr/local/libexec/used-monitor-health
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

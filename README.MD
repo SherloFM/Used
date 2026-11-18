@@ -1,137 +1,184 @@
-# 🛒 Used Marketplace
+# Used Marketplace
 
-A full-stack second-hand goods trading platform built with **Spring Boot 4.1.1**, **Thymeleaf**, and **PostgreSQL**. Users can browse, save, report, buy and sell listings, with a separate administrator portal.
+Used Marketplace is a production-deployed second-hand marketplace for Bahrain.
+Verified members can publish listings with real photos, search across multiple
+categories, save items, chat with sellers, report unsafe content, and buy using
+an internal wallet, Almotawaj Wallet, or cash on delivery. Administrators manage
+users, listings, reports, and wallet funding from a separate portal.
 
-![Tech Stack](https://img.shields.io/badge/Tech%20Stack-Java%20|%20Spring%20Boot%20|%20PostgreSQL-blue) ![License](https://img.shields.io/badge/License-MIT-green)
+**Live application:** [https://used.thrifty.bid](https://used.thrifty.bid)
 
-## Microservices Docker setup
+![Used Marketplace architecture](docs/microservices-architecture.png)
 
-The nine services have individual Dockerfiles and a root `compose.yaml` for
-PostgreSQL, RabbitMQ, and optional pgAdmin. See [Docker setup](docs/docker-setup.md)
-for configuration, build commands, ports, and remaining runtime prerequisites.
-Every browser request now goes through one origin: [the gateway](docs/gateway.md)
-serves the pages and routes `/api/**` and `/auth/user/**` to the owning service.
-Kafka now distributes wallet-payment jobs using the existing Marketplace worker
-pool, bounded retries, and a dead-letter topic. See
-[Kafka payments](docs/kafka-payments.md) for the contract and test commands.
-Media now owns image bytes; Accounts and Marketplace store only the returned URL.
-See [Media service](docs/media-service.md).
-Full-stack business-workflow verification remains pending.
+## Main features
 
-## ✨ Key Features
+- Email verification, password recovery, HttpOnly JWT sessions, and CSRF protection.
+- Public listing discovery with keyword and one-to-five-category filtering.
+- Mobile-friendly listing and profile image uploads through the Media service.
+- Favorites, seller chat, persisted notifications, SSE updates, and email delivery.
+- Internal-wallet payments distributed through Kafka, with atomic listing sale,
+  wallet transfer, payment, and transaction records inside Marketplace.
+- Almotawaj Wallet checkout with signed callbacks and idempotent completion.
+- Seller-managed cash-on-delivery requests.
+- Administrator user management, wallet funding, listing management, and a
+  RabbitMQ-backed moderation delisting saga.
+- Jenkins build, test, deployment, health-check, and rollback automation on AWS.
 
-*   **Secure Authentication**: JWT-based stateless security with email verification workflows and rate-limited password resets.
-*   **Advanced Search Engine**: Real-time keyword searching combined with multi-category tagging (filters) and dynamic pagination.
-*   **Listing Management**: Users can create rich media listings with image uploads, condition grading, and geographic tagging.
-*   **Real-Time Notifications**: Persisted notifications with after-commit SSE delivery, read status, replay, COD alerts and saved-listing updates.
-*   **Favorites**: Star toggle and paginated saved-listing grid; sale/delist cleanup with notifications and best-effort email.
-*   **Moderation**: Listing reports, review/resolve workflow, user management and role-based login routing.
-*   **Payments**: Asynchronous wallet processing and seller-managed cash-on-delivery requests.
-*   **Comprehensive Audit Trail**: Every user action (Login, Create, Buy, Edit) is logged immutably and displayed in a personalized activity timeline.
-*   **Responsive UI**: Built with semantic HTML5/CSS3 and vanilla JavaScript for maximum performance without heavy framework overhead.
+## Technology
 
-## 🛠️ Technology Stack
+| Layer | Technology |
+|---|---|
+| Backend | Java 17, Spring Boot 4.1.2, Spring MVC, Spring Data JPA, Spring Security |
+| Frontend | Thymeleaf, HTML, CSS, vanilla JavaScript, SSE, WebSocket/STOMP |
+| Data | PostgreSQL 18 |
+| Messaging | RabbitMQ 4.4, Apache Kafka 4.1 |
+| Edge | NGINX, HTTPS with Let's Encrypt, Cloudflare DNS |
+| Delivery | Maven, Docker Compose, Jenkins, systemd, AWS EC2 |
+| Testing | JUnit, Mockito, MockMvc, Cucumber, Testcontainers/PostgreSQL |
 
-### Backend
-*   **Language**: Java 17+
-*   **Framework**: Spring Boot 4.1.1
-    *   Spring Web MVC
-    *   Spring Data JPA (Hibernate)
-    *   Spring Security (JWT Implementation)
-    *   Spring Mail (SMTP Integration)
-*   **Database**: PostgreSQL
-*   **Build Tool**: Maven
+## Service boundaries
 
-### Frontend
-*   **Templating**: Thymeleaf
-*   **Styling**: Custom CSS3 (Flexbox/Grid), Font Awesome Icons
-*   **Logic**: Vanilla ES6+ JavaScript (Fetch API, LocalStorage, EventSource)
+The root Maven project is an aggregator. Each service is independently buildable
+and owns its tables; cross-service references are scalar IDs.
 
-## 🚀 Getting Started
+| Service | Port | Responsibility |
+|---|---:|---|
+| Accounts | 8081 | Users, credentials, profiles, authentication |
+| Chat | 8082 | Conversations and messages |
+| Marketplace | 8083 | Listings, categories, wallets, payments, transactions |
+| Favorites | 8084 | Saved listings |
+| Notification | 8085 | Notifications, SSE, and SMTP delivery |
+| Moderation | 8086 | Listing reports and delisting workflow |
+| Audit | 8087 | Immutable activity records |
+| Media | 8088 | Validated image bytes and metadata |
+| Frontend | 8080 internal | Thymeleaf pages and static assets |
+
+NGINX is the browser gateway. Immediate service operations use HTTP with
+`X-Internal-Token`. RabbitMQ propagates listing lifecycle events and moderation
+commands. Kafka distributes wallet-payment jobs using topic `payment-requests`,
+keyed by `listingId`, with consumer group `marketplace-payment-workers`.
+
+See [architecture decisions](docs/architecture-decisions.md) and the
+[detailed architecture](docs/microservices-architecture-detailed.md).
+
+## Database design
+
+Marketplace keeps payment execution, wallet balances, listing sale, and
+payment/transaction records in one local database transaction. No distributed
+transaction is attempted across services.
+
+![Used Marketplace ERD](docs/marketplace-erd.svg)
+
+- [ERD explanation](docs/marketplace-erd.md)
+- [DBML source](docs/used-marketplace.dbml)
+
+## Security model
+
+- The signed JWT remains in the HttpOnly `used_auth` cookie.
+- CSRF uses the `used_csrf` cookie and `X-XSRF-TOKEN` request header.
+- Internal HTTP endpoints require a shared token of at least 32 characters.
+- Browser traffic uses one HTTPS origin; internal and actuator routes are blocked
+  at the public gateway.
+- Almotawaj callbacks use an HMAC-SHA256 signature over the exact request body.
+- Secrets are supplied through environment files or CI credentials and are not
+  committed to source control.
+
+## Local Docker setup
 
 ### Prerequisites
-*   JDK 17 or higher installed.
-*   Maven installed.
-*   PostgreSQL running locally or remotely.
 
-### Installation Steps
+- Docker with Compose
+- Git
+- Approximately 8 GB available memory for the complete stack
 
-1.  **Clone the Repository**
-    ```bash
-     # Clone your actual repository URL, then enter the Used checkout.
-     cd Used
-    ```
+Copy the non-secret template and supply your own values:
 
-2.  **Configure Database**
-    Update `src/main/resources/application-dev.properties` with your PostgreSQL credentials:
-    ```properties
-    spring.datasource.url=jdbc:postgresql://localhost:5432/used_marketplace_db
-    spring.datasource.username=your_username
-    spring.datasource.password=your_password
-    
-    # SMTP Config for Emails
-    spring.mail.host=smtp.gmail.com
-    spring.mail.port=587
-    spring.mail.username=your-email@gmail.com
-    spring.mail.password=your-app-password
-    ```
-
-3.  **Run the Application**
-    Using Maven wrapper:
-    ```bash
-    ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-    ```
-    Or directly from IDE (IntelliJ/Eclipse): Run `UsedApplication.java` ensuring the `dev` profile is active.
-
-4.  **Access the App**
-    Navigate to `http://localhost:8080` in your browser.
-
-## 📂 Project Structure
-
-```text
-src/main/java/com/example/Used
-├── Controller      # REST Endpoints & View Mappings
-├── Model           # Entities (User, Listing, Transaction, AuditLog)
-├── Repository      # JPA Interfaces for DB Access
-├── Service         # Business Logic Layer
-├── Security        # JWT Filters, Config, UserDetails
-└── Exceptions      # Global Error Handling
+```bash
+cp .env.example .env
 ```
 
-## Development and verification
+Required values include PostgreSQL, RabbitMQ, JWT, internal-token, Kafka cluster,
+and SMTP settings. Generate unique values; never commit `.env`.
 
-Windows PowerShell (from the project root):
+Build and start:
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+The gateway is available at `http://localhost:8080`. RabbitMQ management and
+Kafka/PostgreSQL host ports bind to loopback only. Full setup, resource limits,
+health checks, and database bootstrap instructions are in
+[docs/docker-setup.md](docs/docker-setup.md).
+
+## Building and testing without Docker
+
+```bash
+./mvnw -B -ntp -pl '!e2e-tests' clean verify
+```
+
+Windows PowerShell:
+
 ```powershell
-.\mvnw.cmd compile
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"
-.\mvnw.cmd test "-Dtest=PaymentConcurrencyDbTest" "-Dspring.jpa.show-sql=false"
+.\mvnw.cmd -B -ntp -pl '!e2e-tests' clean verify
 ```
 
-`dev` uses PostgreSQL configured in `application-dev.properties`. Override datasource
-and mail settings for your environment; do not copy credentials into documentation.
-Hibernate `ddl-auto=update` manages entity tables. Inspect the SQL files in
-`src/main/resources/db/` for additional indexes; entity schema updates do not imply
-those scripts have been applied. The active-payment unique index is significant for concurrency.
+The normal service suite uses isolated H2 databases and mocked external clients
+where appropriate. The dedicated `PostgresConcurrencyIT` suite starts disposable
+PostgreSQL through Testcontainers and verifies:
 
-The concurrency suite uses real PostgreSQL, unique committed fixtures, the real
-payment executor and a recording mail sender (no external mail delivery). It checks
-competing submissions, wallet overspending, rollback, the legacy purchase path and
-favorite/sale overlap. Fixtures are deleted by their IDs after tasks finish; there
-is no test-wide rollback. A failed race test may describe a production gap rather
-than a broken test. Other existing dev-profile tests may use seed data and real mail.
+- one winner when buyers race to claim a listing;
+- conditional wallet debit cannot overdraw;
+- the partial unique index permits only one active payment per listing.
 
-## UI conventions
+Compilation, isolated tests, PostgreSQL concurrency tests, and live workflow
+evidence are separate guarantees; one does not prove the others.
 
-All full-page templates load `static/css/theme.css` after their page styles. It owns
-the shared purple/blue primary action palette, semantic success/error colors, card
-shape, typography, keyboard focus, mobile layout and reduced-motion rules. Favorites
-use a star consistently. Admin navigation retains its dark background and active-page
-indicator; logout and marketplace links remain available on mobile.
+## CI/CD and AWS deployment
 
-## Documentation
+`Jenkinsfile` performs a clean checkout, isolated service verification, tracked
+secret checks, a separate PostgreSQL concurrency stage, artifact archival, and a
+health-gated deployment. The EC2 release process switches an immutable release
+symlink, restarts nine systemd services, verifies health, and restores the previous
+release on failure. Database data and infrastructure volumes are not reset.
 
-- [API reference](API%20docs.MD): endpoint auth, request/response shapes and side effects.
-- [User stories](UserStories.MD): features and acceptance criteria.
-- [Review findings](REVIEW.md): verification results and remaining consistency gaps.
+The demonstration deployment uses one Amazon Linux EC2 instance. Application
+services run as bounded Java processes; PostgreSQL, RabbitMQ, and Kafka use
+persistent Docker volumes. This is intentionally not a highly available topology.
 
-The maintained README is `README.MD` (there is no separate `Readme.docs` file).
+- [EC2 and Jenkins runbook](docs/ec2-jenkins.md)
+- [Gateway documentation](docs/gateway.md)
+- [Kafka payment contract](docs/kafka-payments.md)
+- [Media service contract](docs/media-service.md)
+
+## Monitoring and logs
+
+Every service exposes an internal aggregate health endpoint. Deployment checks
+validate all nine services, NGINX, HTTPS, and blocked internal routes. A systemd
+timer records service, gateway, disk, and memory health each minute in journald.
+When an EC2 IAM role permits `cloudwatch:PutMetricData`, the same check publishes
+custom metrics to CloudWatch. See the monitoring section in
+[docs/ec2-jenkins.md](docs/ec2-jenkins.md).
+
+## Project documentation
+
+- [API reference](API%20docs.MD)
+- [Planning and delivery record](PLANNING.md)
+- [User stories](UserStories.MD)
+- [Credits and external resources](CREDITS_AND_RESOURCES.md)
+- [Implementation review](REVIEW.md)
+
+## Known limitations
+
+- The production demonstration is a single EC2 host and has restart downtime.
+- PostgreSQL is hosted on EC2 rather than managed RDS.
+- RabbitMQ and Kafka each run as a single demonstration node.
+- Selenium E2E execution is not yet part of the trusted CI gate.
+- Durable publish across a database commit and broker outage would require an
+  approved outbox schema.
+- Image assets currently use PostgreSQL `bytea`; S3 is the intended scaling path.
+
+## Repository
+
+[github.com/SherloFM/Used](https://github.com/SherloFM/Used)

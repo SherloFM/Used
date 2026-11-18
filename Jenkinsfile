@@ -34,6 +34,27 @@ pipeline {
                 }
             }
         }
+        stage('Tracked secret check') {
+            steps {
+                sh 'bash deploy/ci/check-tracked-secrets.sh'
+            }
+        }
+        stage('PostgreSQL concurrency tests') {
+            steps {
+                // Runs separately because it starts a disposable PostgreSQL
+                // container and must never point at the production database.
+                sh '''
+                    export PATH="$JAVA_HOME/bin:$PATH"
+                    bash mvnw -B -ntp -pl services/marketplace-service \
+                        -Dtest=PostgresConcurrencyIT test
+                '''
+            }
+            post {
+                always {
+                    junit testResults: 'services/marketplace-service/target/surefire-reports/TEST-*PostgresConcurrencyIT.xml', allowEmptyResults: false
+                }
+            }
+        }
         stage('Archive JARs') {
             steps {
                 archiveArtifacts artifacts: 'services/*/target/*.jar', fingerprint: true
