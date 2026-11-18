@@ -135,6 +135,15 @@ if (data.imgUrl) {
 Updated pages: listing grid, listing detail, profile avatar, payment summary.
 The navbar already preferred `imgUrl`.
 
+Phone photos are prepared by `static/js/mobile-image.js` before upload. The
+browser applies image orientation, reduces the longest edge to at most 2048 px,
+and sends a JPEG below 4.5 MB. This keeps modern camera files below the 5 MB
+Media contract and converts HEIC/HEIF when the mobile browser can decode the
+selected photo. Accounts and Marketplace both set their multipart limit to 5 MB
+because browser uploads pass through the owning service before reaching Media.
+An unsupported phone codec receives an actionable message instead of creating a
+listing that silently loses its photo.
+
 ## Configuration
 
 Media:

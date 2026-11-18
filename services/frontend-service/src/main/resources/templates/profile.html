@@ -6,6 +6,7 @@
     <title>My Profile - Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
     <script th:src="@{/js/currency.js}"></script>
+    <script th:src="@{/js/mobile-image.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -358,7 +359,7 @@
                 <label for="fileInput" class="upload-overlay" title="Change Photo">
                     <i class="fas fa-camera"></i>
                 </label>
-                <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleImageUpload(this)">
+                <input type="file" id="fileInput" accept="image/*,.heic,.heif" style="display:none;" onchange="handleImageUpload(this)">
             </div>
 
             <div class="user-info">
@@ -795,8 +796,8 @@
 
     // --- IMAGE UPLOAD LOGIC ---
     async function handleImageUpload(inputElement) {
-        const file = inputElement.files[0];
-        if (!file) return;
+        const sourceFile = inputElement.files[0];
+        if (!sourceFile) return;
 
         if (!currentSession) {
             if (window.AppErrors) AppErrors.showToast("Session expired.", true); else alert("Session expired.");
@@ -809,10 +810,10 @@
         const originalHtml = overlay.innerHTML;
         overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-        const formData = new FormData();
-        formData.append('img', file);
-
         try {
+            const file = await MobileImage.prepare(sourceFile);
+            const formData = new FormData();
+            formData.append('img', file);
             const res = await authenticatedFetch('/api/profile/image', {
                 method: 'PUT',
                 body: formData

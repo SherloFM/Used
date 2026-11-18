@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sell an Item - Used Marketplace</title>
     <script th:src="@{/js/auth.js}"></script>
+    <script th:src="@{/js/mobile-image.js}"></script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -299,11 +300,11 @@
                 <label>Item Photo</label>
                 <div class="image-upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                    <p class="upload-text">Click to upload or drag and drop<br><small>PNG, JPG up to 5MB</small></p>
+                    <p class="upload-text">Tap to use your camera or photo library<br><small>JPG, PNG and compatible phone photos</small></p>
                     <img id="previewImg" class="preview-img" alt="Preview">
                     <button type="button" id="removeImgBtn" class="remove-btn">&times;</button>
                 </div>
-                <input type="file" id="fileInput" accept="image/jpeg,image/png,.jpg,.jpeg,.png" style="display:none;" onchange="handleFileSelect(this)">
+                <input type="file" id="fileInput" accept="image/*,.heic,.heif" style="display:none;" onchange="handleFileSelect(this)">
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn">Post Listing</button>
@@ -419,20 +420,19 @@
     }
 
     // --- IMAGE HANDLING (Same as before) ---
-    function handleFileSelect(input) {
+    async function handleFileSelect(input) {
         const file = input.files[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { showToast("That image is larger than 5 MB. Please choose a smaller photo.", true); return; }
-        // Media stores JPEG and PNG only. Accepting HEIC/WebP/GIF here would let
-        // the seller believe the photo uploaded while the server rejected it.
-        const allowed = ['image/jpeg', 'image/png'];
-        if (!allowed.includes(file.type)) {
-            showToast("Only JPEG and PNG images are supported. Please convert this photo and choose it again.", true);
+        document.querySelector('.upload-text').innerHTML = 'Preparing photo…<br><small>Large phone photos are resized automatically</small>';
+        try {
+            selectedFile = await MobileImage.prepare(file);
+        } catch (err) {
+            showToast(err.message || 'That photo could not be prepared.', true);
             input.value = '';
+            document.querySelector('.upload-text').innerHTML = 'Tap to use your camera or photo library<br><small>JPG, PNG and compatible phone photos</small>';
             return;
         }
 
-        selectedFile = file;
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = document.getElementById('previewImg');
@@ -443,7 +443,7 @@
             document.getElementById('removeImgBtn').style.display = 'block';
             document.getElementById('dropZone').classList.add('has-image');
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(selectedFile);
     }
 
     document.getElementById('removeImgBtn')?.addEventListener('click', (e) => {
@@ -452,6 +452,7 @@
         document.getElementById('fileInput').value = '';
         document.getElementById('previewImg').style.display = 'none';
         document.querySelector('.upload-icon').style.display = 'block';
+        document.querySelector('.upload-text').innerHTML = 'Tap to use your camera or photo library<br><small>JPG, PNG and compatible phone photos</small>';
         document.querySelector('.upload-text').style.display = 'block';
         document.getElementById('removeImgBtn').style.display = 'none';
         document.getElementById('dropZone').classList.remove('has-image');

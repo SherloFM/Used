@@ -68,5 +68,7 @@
 ## Epic: Consistent and accessible navigation
 - **As a keyboard user**, I want visible focus and descriptive icon-button labels.
 - **As a mobile user**, I want cards, navigation, forms and admin actions to remain usable without clipped content.
+- **As a mobile seller**, I want camera and photo-library images resized and converted automatically so I can upload them without preparing them on a computer.
+  - Acceptance: large phone photos are oriented, resized and sent as JPEG below the 5 MB Media limit; unsupported codecs show a useful error.
 - **As a motion-sensitive user**, I want reduced-motion settings respected.
 - **As a user**, I want consistent primary, destructive, success and favorite colors across account, marketplace and admin pages.
