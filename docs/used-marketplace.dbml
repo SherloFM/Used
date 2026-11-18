@@ -1,0 +1,272 @@
+// Used Marketplace logical ERD
+// Paste this file into https://dbdiagram.io
+// Same-service foreign keys only. Cross-service IDs are logical references.
+
+Enum UserRole {
+  USER
+  ADMIN
+}
+
+Enum ListingStatus {
+  ACTIVE
+  SOLD
+  DELISTED
+}
+
+Enum PaymentMethod {
+  WALLET [note: 'Internal marketplace balance']
+  CARD [note: 'Almotawaj Wallet gateway; existing database enum value reused']
+  COD
+}
+
+Enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+Enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REMOVED
+}
+
+Enum ReportReason {
+  MISLEADING_LISTING
+  PROHIBITED_ITEM
+  SUSPECTED_SCAM
+  INAPPROPRIATE_CONTENT
+  DUPLICATE_LISTING
+  INCORRECT_INFORMATION
+  OTHER
+}
+
+Enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  DELISTING
+  DISMISSED
+  ACTION_TAKEN
+}
+
+Enum AuditAction {
+  USER_REGISTERED
+  EMAIL_VERIFIED
+  PASSWORD_RESET
+  PASSWORD_CHANGED
+  USER_BANNED
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_DELISTED
+  LISTING_SOLD
+}
+
+Enum ListingEventType {
+  CREATED
+  UPDATED
+  SOLD
+  DELISTED
+}
+
+// ACCOUNTS SERVICE DATABASE
+Table users {
+  id bigint [pk, increment]
+  username varchar(255)
+  email varchar(255)
+  password varchar(255) [not null, note: 'BCrypt hash; never returned by the API']
+  role UserRole [not null, default: 'USER']
+  is_banned boolean [not null, default: false]
+  email_verified boolean [not null, default: false]
+  verification_code varchar(255)
+  verification_code_expiration timestamp
+  password_reset_code varchar(255)
+  password_reset_code_expiration timestamp
+  user_profile_id bigint [unique]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table user_profile {
+  id bigint [pk, increment]
+  first_name varchar(255)
+  last_name varchar(255)
+  phone_number varchar(255)
+  profile_bio varchar(255)
+  img bytea [note: 'Legacy inline image']
+  imgtype varchar(255) [note: 'Legacy inline image MIME type']
+  img_url varchar(255) [note: 'Relative /api/media/{id} path; logical reference to Media']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+// MARKETPLACE SERVICE DATABASE
+Table listings {
+  id bigint [pk, increment]
+  user_id bigint [not null, note: 'Logical reference to accounts.users.id (seller)']
+  title varchar(255)
+  description varchar(255)
+  price double [note: 'BHD']
+  condition varchar(255)
+  location varchar(255)
+  status ListingStatus [not null, default: 'ACTIVE']
+  status_reason varchar(255)
+  img bytea [note: 'Legacy inline image']
+  imgtype varchar(255)
+  img_url varchar(255) [note: 'Relative /api/media/{id} path']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table categories {
+  id bigint [pk, increment]
+  name varchar(255) [not null, unique]
+  description varchar(255)
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table listing_categories {
+  listing_id bigint [not null]
+  category_id bigint [not null]
+
+  indexes {
+    (listing_id, category_id) [pk]
+  }
+}
+
+Table payments {
+  id bigint [pk, increment]
+  listing_id bigint [not null]
+  buyer_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  seller_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  amount decimal(12,2) [not null, note: 'BHD']
+  method PaymentMethod
+  status PaymentStatus [not null]
+  failure_reason varchar(255)
+  expires_at timestamp
+  processed_at timestamp
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table transactions {
+  id bigint [pk, increment]
+  listing_id bigint [not null, unique]
+  buyer_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  seller_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  amount double [not null, note: 'BHD']
+  status TransactionStatus [not null]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table user_wallets {
+  id bigint [pk, increment]
+  user_id bigint [not null, unique, note: 'Logical reference to accounts.users.id']
+  balance decimal(12,2) [not null, default: 0, note: 'BHD; funded by an administrator']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+// FAVORITES SERVICE DATABASE
+Table favorites {
+  id bigint [pk, increment]
+  user_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  listing_id bigint [not null, note: 'Logical reference to marketplace.listings.id']
+  created_at timestamp [not null, default: `now()`]
+
+  indexes {
+    (user_id, listing_id) [unique]
+  }
+}
+
+// CHAT SERVICE DATABASE
+Table chat_conversations {
+  id bigint [pk, increment]
+  listing_id bigint [not null, note: 'Logical reference to marketplace.listings.id']
+  buyer_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  seller_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  hidden_for_buyer boolean [not null, default: false]
+  hidden_for_seller boolean [not null, default: false]
+  created_at timestamp [default: `now()`]
+  last_message_at timestamp
+
+  indexes {
+    (listing_id, buyer_id) [unique]
+  }
+}
+
+Table chat_messages {
+  id bigint [pk, increment]
+  conversation_id bigint [not null]
+  sender_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  content text
+  read boolean [not null, default: false]
+  sent_at timestamp [default: `now()`]
+}
+
+// MODERATION SERVICE DATABASE
+Table listing_reports {
+  id bigint [pk, increment]
+  listing_id bigint [not null, note: 'Logical reference to marketplace.listings.id']
+  reporter_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  admin_id bigint [note: 'Logical reference to accounts.users.id']
+  reason ReportReason [not null]
+  status ReportStatus [not null, default: 'PENDING']
+  description varchar(1000)
+  admin_notes varchar(1000)
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  resolved_at timestamp
+}
+
+// NOTIFICATION SERVICE DATABASE
+Table notifications {
+  id bigint [pk, increment]
+  user_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  payment_id bigint [note: 'Logical reference to marketplace.payments.id']
+  listing_id bigint [note: 'Logical reference to marketplace.listings.id']
+  type varchar(255) [not null]
+  title varchar(255) [not null]
+  message varchar(1000) [not null]
+  img_url varchar(255)
+  is_read boolean [not null, default: false]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table processed_listing_events {
+  event_id varchar(64) [pk]
+  event_type ListingEventType [not null]
+  listing_id bigint [note: 'Logical reference to marketplace.listings.id']
+  processed_at timestamp [not null]
+}
+
+// AUDIT SERVICE DATABASE
+Table audit_logs {
+  id bigint [pk, increment]
+  action AuditAction [not null]
+  actor_id bigint [note: 'Logical reference to accounts.users.id']
+  actor_username varchar(255)
+  details text
+  created_at timestamp [not null, default: `now()`]
+}
+
+// MEDIA SERVICE DATABASE
+Table media_assets {
+  id uuid [pk]
+  owner_id bigint [not null, note: 'Logical reference to accounts.users.id']
+  content_type varchar(50) [not null]
+  size_bytes bigint [not null]
+  sha256 char(64) [not null]
+  content bytea [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+// Same-service foreign keys only. Cross-service IDs above are logical references.
+Ref: user_profile.id - users.user_profile_id
+Ref: listings.id < listing_categories.listing_id
+Ref: categories.id < listing_categories.category_id
+Ref: listings.id < payments.listing_id
+Ref: listings.id - transactions.listing_id
+Ref: chat_conversations.id < chat_messages.conversation_id
