@@ -1,108 +1,99 @@
-# Used Marketplace — Microservice Architecture
+# Used Marketplace — Presentation Architecture
+
+This is the simplified whiteboard/presentation view. REST calls between services
+are intentionally omitted. See `microservices-architecture-detailed.md` for the
+engineering-level communication map.
 
 ```mermaid
-flowchart TB
-    USER([Browser / Mobile User])
-    CF[Cloudflare DNS<br/>used.thrifty.bid]
-    EDGE[NGINX Gateway<br/>HTTPS :80 / :443]
-    FE[Frontend Service<br/>Thymeleaf + JavaScript<br/>:8080]
+%%{init: {
+  "theme": "base",
+  "flowchart": { "curve": "basis", "nodeSpacing": 42, "rankSpacing": 55 },
+  "themeVariables": {
+    "fontFamily": "Arial, sans-serif",
+    "fontSize": "18px",
+    "primaryTextColor": "#172033",
+    "lineColor": "#64748b",
+    "clusterBkg": "#ffffff",
+    "clusterBorder": "#cbd5e1"
+  }
+}}%%
+flowchart LR
+    PEOPLE([Users]) --> DNS[Cloudflare DNS]
+    DNS --> EDGE[NGINX<br/>HTTPS Gateway]
 
-    USER -->|HTTPS| CF --> EDGE
-    EDGE -->|pages and static assets| FE
-
-    subgraph SERVICES[Spring Boot Microservices]
+    subgraph PLATFORM[Used Marketplace — Spring Boot Microservices]
       direction LR
-      ACC[Accounts<br/>:8081]
-      CHAT[Chat + WebSocket<br/>:8082]
+      FRONTEND[Frontend]
+      ACCOUNTS[Accounts]
+      CHAT[Chat]
+      MARKETPLACE[Marketplace]
+      PAYMENTS[Payment Workers<br/><small>inside Marketplace</small>]
+      FAVORITES[Favorites]
+      NOTIFICATION[Notification]
+      MODERATION[Moderation]
+      AUDIT[Audit]
+      MEDIA[Media]
 
-      subgraph MARKETPLACE[Marketplace Service :8083]
-        direction TB
-        MKTAPI[Listing / Category / Wallet / Payment APIs]
-        PAYWORKERS[Payment Worker Pool<br/>atomic local transaction]
-      end
-
-      FAV[Favorites<br/>:8084]
-      NOTIFY[Notification + SSE<br/>:8085]
-      MOD[Moderation<br/>:8086]
-      AUDIT[Audit<br/>:8087]
-      MEDIA[Media<br/>:8088]
+      FRONTEND ~~~ ACCOUNTS ~~~ CHAT ~~~ MARKETPLACE ~~~ PAYMENTS
+      PAYMENTS ~~~ FAVORITES ~~~ NOTIFICATION ~~~ MODERATION ~~~ AUDIT ~~~ MEDIA
     end
 
-    EDGE -->|REST / auth + profile| ACC
-    EDGE -->|REST + WebSocket| CHAT
-    EDGE -->|REST| MKTAPI
-    EDGE -->|REST| FAV
-    EDGE -->|REST + SSE| NOTIFY
-    EDGE -->|REST| MOD
-    EDGE -->|GET images| MEDIA
+    EDGE --> PLATFORM
 
-    MKTAPI -->|REST: user lookup| ACC
-    MKTAPI -->|REST: notify| NOTIFY
-    MKTAPI -->|REST: audit| AUDIT
-    MKTAPI -->|REST: upload| MEDIA
-    ACC -->|REST: email / push| NOTIFY
-    ACC -->|REST: audit| AUDIT
-    ACC -->|REST: avatar upload| MEDIA
-    CHAT -->|REST: users| ACC
-    CHAT -->|REST: listings| MKTAPI
-    FAV -->|REST: users| ACC
-    FAV -->|REST: listing snapshot| MKTAPI
-    FAV -->|REST: notify| NOTIFY
-    MOD -->|REST: users| ACC
-    MOD -->|REST: listing read / immediate delist| MKTAPI
-    NOTIFY -->|REST: user email| ACC
-
-    subgraph MESSAGING[Asynchronous Messaging]
+    subgraph ASYNC[Messaging & Delivery]
       direction LR
-      RMQ{{RabbitMQ<br/>listing.commands + listing.events}}
-      KAFKA{{Kafka<br/>payment-requests<br/>3 partitions}}
-      DLT[(payment-requests.DLT)]
+      RABBIT{{RabbitMQ<br/>Listing status & delist saga}}
+      KAFKA{{Kafka<br/>Payment load distribution}}
+      SMTP[SMTP<br/>Email delivery]
     end
 
-    MKTAPI -->|publish listing created / updated / sold / delisted| RMQ
-    MOD -->|publish delist command| RMQ
-    RMQ -->|status updates + cleanup| FAV
-    RMQ -->|sold / delisted notifications| NOTIFY
-    RMQ -->|delist saga result| MOD
-    RMQ -->|idempotent delist command| MKTAPI
+    MARKETPLACE --- RABBIT
+    MODERATION --- RABBIT
+    RABBIT --- FAVORITES
+    RABBIT --- NOTIFICATION
 
-    MKTAPI -->|key = listingId| KAFKA
-    KAFKA -->|consumer group:<br/>marketplace-payment-workers| PAYWORKERS
-    KAFKA -. retry exhausted .-> DLT
+    MARKETPLACE --> KAFKA
+    KAFKA --> PAYMENTS
 
-    PG[(PostgreSQL<br/>one physical schema<br/>service-owned tables)]
-    SERVICES -. scalar IDs across service boundaries .-> PG
-    PAYWORKERS -->|payment + listing + wallet + transaction<br/>one local DB transaction| PG
+    NOTIFICATION --> SMTP
 
-    ALMOTAWAJ[Almotawaj Wallet Gateway]
-    SMTP[SMTP Provider]
-    MKTAPI <-->|HTTPS checkout / HMAC callback| ALMOTAWAJ
-    NOTIFY -->|email| SMTP
+    DATABASE[(PostgreSQL<br/>Service-owned tables)]
+    PLATFORM --- DATABASE
 
-    classDef edge fill:#e8f1ff,stroke:#2563eb,stroke-width:2px,color:#15315b;
-    classDef service fill:#f8fafc,stroke:#475569,stroke-width:1.5px,color:#172033;
-    classDef marketplace fill:#eefcf5,stroke:#0f9f6e,stroke-width:2px,color:#114737;
-    classDef broker fill:#fff6e5,stroke:#e58a00,stroke-width:2px,color:#613900;
-    classDef data fill:#f4edff,stroke:#7c3aed,stroke-width:2px,color:#382064;
-    classDef external fill:#fff1f2,stroke:#e11d48,stroke-width:1.5px,color:#67152a;
+    WALLET[Almotawaj<br/>Wallet Gateway]
+    MARKETPLACE --- WALLET
 
-    class CF,EDGE,FE edge;
-    class ACC,CHAT,FAV,NOTIFY,MOD,AUDIT,MEDIA service;
-    class MKTAPI,PAYWORKERS marketplace;
-    class RMQ,KAFKA broker;
-    class PG,DLT data;
-    class ALMOTAWAJ,SMTP external;
+    classDef user fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#15315b;
+    classDef edge fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e;
+    classDef service fill:#ffffff,stroke:#475569,stroke-width:2px,color:#172033;
+    classDef market fill:#ecfdf5,stroke:#059669,stroke-width:3px,color:#064e3b;
+    classDef rabbit fill:#fff7ed,stroke:#ea580c,stroke-width:3px,color:#7c2d12;
+    classDef kafka fill:#f5f3ff,stroke:#7c3aed,stroke-width:3px,color:#4c1d95;
+    classDef smtp fill:#fefce8,stroke:#ca8a04,stroke-width:2px,color:#713f12;
+    classDef data fill:#f8fafc,stroke:#334155,stroke-width:2px,color:#172033;
+    classDef external fill:#fff1f2,stroke:#e11d48,stroke-width:2px,color:#881337;
+
+    class PEOPLE user;
+    class DNS,EDGE edge;
+    class FRONTEND,ACCOUNTS,CHAT,FAVORITES,MEDIA,MODERATION,NOTIFICATION,AUDIT service;
+    class MARKETPLACE,PAYMENTS market;
+    class RABBIT rabbit;
+    class KAFKA kafka;
+    class SMTP smtp;
+    class DATABASE data;
+    class WALLET external;
+
+    style PLATFORM fill:#f8fafc,stroke:#94a3b8,stroke-width:2px
+    style ASYNC fill:#ffffff,stroke:#cbd5e1,stroke-width:2px
 ```
 
-## Communication rules
+## What to say while presenting
 
-- **REST** is used for immediate reads and commands. Internal requests carry
-  `X-Internal-Token`; browser requests use the `used_auth` HttpOnly JWT cookie
-  and `used_csrf` / `X-XSRF-TOKEN` CSRF pair through NGINX.
-- **RabbitMQ** propagates listing status changes and runs the moderation delist
-  saga with retries and dead-letter queues. It is not used for payment work.
-- **Kafka** distributes `payment-requests`, keyed by `listingId`, across the
-  `marketplace-payment-workers` consumer group. The worker commits only after
-  Marketplace's local payment/listing/wallet/transaction transaction commits.
-- Each service owns its tables. References to another service are scalar IDs;
-  services do not join across ownership boundaries.
+- Browser traffic enters through Cloudflare and the NGINX HTTPS gateway.
+- The platform is split into nine independently deployable Spring Boot services.
+- Normal request/response communication is intentionally not drawn.
+- RabbitMQ distributes listing status changes and coordinates moderation delisting.
+- Kafka balances payment jobs across Marketplace payment workers, keyed by listing.
+- Notification sends email through SMTP.
+- Each service owns its tables; Marketplace completes payment, listing sale,
+  wallet credit and transaction records atomically.
