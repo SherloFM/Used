@@ -30,6 +30,7 @@ public class MediaAsset {
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(nullable = false, length = 64)
     private String sha256;
 
