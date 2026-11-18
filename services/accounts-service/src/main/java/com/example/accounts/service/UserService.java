@@ -82,14 +82,22 @@ public class UserService {
     }
 
     public User createUser(User userObject){
-        if (!userRepository.existsByEmail(userObject.getEmail())){
-            userObject.setPassword(passwordEncoder.encode(userObject.getPassword()));
+        String normalizedEmail = userObject.getEmail() == null
+                ? "" : userObject.getEmail().trim().toLowerCase();
+        String rawPassword = userObject.getPassword();
+        if (normalizedEmail.isBlank() || rawPassword == null || rawPassword.length() < 6) {
+            throw new InformationExistException("A valid email and password of at least 6 characters are required");
+        }
+        if (!userRepository.existsByEmail(normalizedEmail)){
+            userObject.setEmail(normalizedEmail);
 
             UserProfile userProfile = new UserProfile();
             userProfile.setUser(userObject);
             userObject.setUserProfile(userProfile);
             userObject.setRole(User.Role.USER);
-            userObject.setPassword(passwordEncoder.encode(userObject.getPassword()));
+            // Encode the browser's raw password exactly once. Encoding the first
+            // BCrypt hash a second time made every newly registered password fail.
+            userObject.setPassword(passwordEncoder.encode(rawPassword));
             userObject.setEmailVerified(false);
             String emailVerificationCode = String.format("%06d",new Random().nextInt(1000000));
             userObject.setVerificationCode(emailVerificationCode);
@@ -257,7 +265,11 @@ public class UserService {
                 user.getId()
         );
 
-        return ResponseEntity.ok("Email verified successfully");
+        // Verification completes registration and signs the user in without
+        // asking for the password again. We deliberately do not issue a JWT
+        // before verification: downstream services trust any JWT they receive.
+        String jwt = jwtUtilities.generateJWTtoken(new MyUserDetails(user));
+        return ResponseEntity.ok(new LoginResponses(jwt, user.getRole().name()));
     }
 
     public ResponseEntity<?> forgotPassword(ForgetPasswordRequests request) {

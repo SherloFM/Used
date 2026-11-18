@@ -172,6 +172,11 @@ RabbitMQ continues all existing listing lifecycle and moderation messaging.
 - Accounts alone checks whether an account still exists, is verified, and is not
   banned. Other services validate JWT claims only, so a ban propagates when the
   token expires.
+- Registration BCrypt-encodes the submitted password exactly once. Registration
+  does not issue a JWT while the account is unverified; successful email
+  verification issues the `used_auth` HttpOnly cookie and redirects the user to
+  `/profile`, so the user is signed in without entering the password again while
+  preserving the verified-account boundary trusted by downstream services.
 
 ### Browser edge
 

@@ -35,7 +35,7 @@ public class CategoryService {
     }
 
     public List<Categories> getCategories() {
-        return categoryRepository.findAll();
+        return categoryRepository.findAllByOrderByNameAsc();
     }
 
     public void deleteCategory(Long id) {

@@ -5,6 +5,14 @@ Feature: User authentication
     When the user registers with email "newuser@test.com" and password "Password123"
     Then the response status is 200
     And the response contains a user id
+    And the stored password accepts "Password123"
+
+  Scenario: Verification signs the newly registered user in
+    Given no user exists with email "autologin@test.com"
+    When the user registers with email "autologin@test.com" and password "Password123"
+    And the user verifies the registered email "autologin@test.com"
+    Then the response status is 200
+    And the response sets the "used_auth" cookie
 
   Scenario: Login with valid credentials
     Given a user exists with email "alice@used.local" and password "password123"

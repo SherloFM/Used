@@ -202,92 +202,27 @@
             opacity: 1;
         }
 
-        .tag-input-container {
-    position: relative;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 8px;
-    background: white;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 45px;
-    cursor: text;
-}
-
-.tag-input-container:focus-within {
-    border-color: var(--brand);
-    box-shadow: 0 0 0 3px rgba(160, 108, 213, 0.1);
-}
-
-.tags-list {
-    display: contents; /* Allows children to participate in parent flex layout */
-}
-
-.tag-chip {
-    background: #eef2ff;
-    color: #4f46e5;
-    padding: 4px 10px;
-    border-radius: 15px;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    animation: fadeIn 0.2s ease;
-}
-
-.tag-chip span {
-    font-weight: 600;
-}
-
-.tag-remove {
-    cursor: pointer;
-    color: #9ca3af;
-    font-size: 1.1rem;
-    line-height: 1;
-}
-.tag-remove:hover { color: #ef4444; }
-
-.tag-field {
-    flex-grow: 1;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    padding: 4px !important;
-    min-width: 150px;
-}
-
-.suggestions-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 100;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.suggestion-item {
-    padding: 10px 15px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.suggestion-item:hover {
-    background: #f3f4f6;
-    color: var(--brand);
-}
-
-.no-results {
-    padding: 10px 15px;
-    color: #999;
-    font-style: italic;
-}
+        .category-picker { position: relative; }
+        .category-toggle {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px;
+            background: white; color: #344054; font-size: 1rem; cursor: pointer;
+            text-align: left;
+        }
+        .category-toggle:focus-visible { border-color: var(--brand); outline: 3px solid rgba(160,108,213,.12); }
+        .category-menu {
+            position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 120;
+            background: white; border: 1px solid #ddd; border-radius: 10px;
+            box-shadow: 0 10px 28px rgba(0,0,0,.14); padding: 10px;
+        }
+        .category-search { width: 100%; margin-bottom: 8px; }
+        .category-options { max-height: 280px; overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; }
+        .category-option { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 7px; cursor: pointer; }
+        .category-option:hover { background: #f5f3ff; }
+        .category-option input { accent-color: var(--brand); }
+        .selected-categories { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+        .category-chip { background: #eef2ff; color: #4f46e5; padding: 5px 10px; border-radius: 16px; font-size: .88rem; font-weight: 600; }
+        @media (max-width: 620px) { .category-options { grid-template-columns: 1fr; } }
     </style>
     <link rel="stylesheet" href="/css/theme.css">
 </head>
@@ -336,22 +271,21 @@
                 </div>
 
                 <div class="input-group full-width">
-                    <label>Tags / Categories</label>
-                    <div class="tag-input-container" id="tagContainer">
-                        <!-- Selected Tags will appear here -->
-                        <div id="selectedTags" class="tags-list"></div>
-
-                        <!-- Input Field -->
-                        <input type="text"
-                               id="categoryInput"
-                               class="form-control tag-field"
-                               placeholder="Type a category and press Enter..."
-                               autocomplete="off">
-
-                        <!-- Suggestions Dropdown (Hidden by default) -->
-                        <div id="suggestionsDropdown" class="suggestions-dropdown" style="display:none;"></div>
+                    <label>Categories <span class="required-star">*</span></label>
+                    <div class="category-picker" id="categoryPicker">
+                        <button type="button" id="categoryToggle" class="category-toggle"
+                                aria-expanded="false" aria-controls="categoryMenu">
+                            <span id="categoryToggleText">Select up to 5 categories</span>
+                            <span aria-hidden="true">▾</span>
+                        </button>
+                        <div id="categoryMenu" class="category-menu" hidden>
+                            <input type="search" id="categorySearch" class="form-control category-search"
+                                   placeholder="Search categories…" autocomplete="off">
+                            <div id="categoryOptions" class="category-options" role="group" aria-label="Available categories"></div>
+                        </div>
                     </div>
-                    <small style="color:#888;">Add up to 5 relevant tags to help buyers find your item.</small>
+                    <div id="selectedCategories" class="selected-categories" aria-live="polite"></div>
+                    <small style="color:#888;">Choose one or more relevant categories (maximum 5).</small>
                 </div>
 
                 <div class="input-group full-width">
@@ -386,9 +320,9 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
         await checkAuth();
-        loadCategoriesForTags();
+        await loadCategories();
         setupDragDrop();
-        setupTagInput();
+        setupCategoryPicker();
     });
 
     async function checkAuth() {
@@ -398,123 +332,90 @@
         }
     }
 
-    // --- LOAD CATEGORIES FOR AUTOCOMPLETE ---
-    async function loadCategoriesForTags() {
+    // --- MULTI-CATEGORY DROPDOWN ---
+    async function loadCategories() {
         try {
             const res = await authenticatedFetch('/api/categories');
-            if (res.ok) {
-                allCategories = await res.json();
-            }
+            if (!res.ok) throw new Error('Category request failed');
+            allCategories = await res.json();
+            renderCategoryOptions('');
         } catch (err) {
             console.error("Failed to load categories", err);
+            document.getElementById('categoryOptions').innerHTML =
+                '<div style="padding:10px;color:#c0392b;">Categories could not be loaded. Refresh and try again.</div>';
         }
     }
 
-    // --- TAG INPUT LOGIC ---
-    function setupTagInput() {
-        const input = document.getElementById('categoryInput');
-        const container = document.getElementById('tagContainer');
-        const tagsList = document.getElementById('selectedTags');
-        const dropdown = document.getElementById('suggestionsDropdown');
+    function setupCategoryPicker() {
+        const picker = document.getElementById('categoryPicker');
+        const toggle = document.getElementById('categoryToggle');
+        const menu = document.getElementById('categoryMenu');
+        const search = document.getElementById('categorySearch');
 
-        // Click anywhere in container focuses input
-        container.addEventListener('click', () => input.focus());
-
-        input.addEventListener('input', (e) => {
-            const val = e.target.value.trim().toLowerCase();
-            if (val.length > 0) {
-                showSuggestions(val);
-            } else {
-                hideSuggestions();
+        toggle.addEventListener('click', () => {
+            menu.hidden = !menu.hidden;
+            toggle.setAttribute('aria-expanded', String(!menu.hidden));
+            if (!menu.hidden) search.focus();
+        });
+        search.addEventListener('input', () => renderCategoryOptions(search.value));
+        document.addEventListener('click', event => {
+            if (!picker.contains(event.target)) {
+                menu.hidden = true;
+                toggle.setAttribute('aria-expanded', 'false');
             }
         });
+    }
 
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const val = input.value.trim();
-                if (val) addTag(val);
-            } else if (e.key === 'Backspace' && input.value === '') {
-                removeLastTag();
-            }
-        });
-
-        function showSuggestions(query) {
-            // Filter available categories not already selected
-            const matches = allCategories.filter(cat =>
-                cat.name.toLowerCase().includes(query) &&
-                !selectedCategoryIds.includes(cat.id)
-            ).slice(0, 5); // Limit to 5 results
-
-            if (matches.length === 0) {
-                dropdown.innerHTML = '<div class="no-results">No matching categories found</div>';
-            } else {
-                dropdown.innerHTML = matches.map(cat =>
-                    `<div class="suggestion-item" onclick="addTagById(${cat.id}, '${cat.name}')">${cat.name}</div>`
-                ).join('');
-            }
-            dropdown.style.display = 'block';
+    function renderCategoryOptions(query) {
+        const normalized = String(query || '').trim().toLowerCase();
+        const matches = allCategories.filter(category =>
+            category.name.toLowerCase().includes(normalized));
+        const options = document.getElementById('categoryOptions');
+        if (!matches.length) {
+            options.innerHTML = '<div style="padding:10px;color:#888;">No matching categories</div>';
+            return;
         }
+        options.replaceChildren(...matches.map(category => {
+            const label = document.createElement('label');
+            label.className = 'category-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = category.id;
+            checkbox.checked = selectedCategoryIds.includes(category.id);
+            checkbox.addEventListener('change', () => changeCategory(category, checkbox));
+            const name = document.createElement('span');
+            name.textContent = category.name;
+            label.append(checkbox, name);
+            return label;
+        }));
+    }
 
-        function hideSuggestions() {
-            dropdown.style.display = 'none';
-        }
-
-        // Global functions attached to window so inline onclick works
-        window.addTagById = (id, name) => {
-            if (selectedCategoryIds.includes(id)) return;
+    function changeCategory(category, checkbox) {
+        if (checkbox.checked) {
             if (selectedCategoryIds.length >= 5) {
-                showToast("Max 5 tags allowed.", true);
+                checkbox.checked = false;
+                showToast('Choose no more than 5 categories.', true);
                 return;
             }
-
-            selectedCategoryIds.push(id);
-
-            // Create Chip
-            const chip = document.createElement('div');
-            chip.className = 'tag-chip';
-            chip.innerHTML = `<span>${name}</span><i class="fas fa-times tag-remove" onclick="removeTagById(${id})"></i>`;
-            tagsList.appendChild(chip);
-
-            input.value = '';
-            hideSuggestions();
-        };
-
-        window.removeTagById = (id) => {
-            selectedCategoryIds = selectedCategoryIds.filter(cid => cid !== id);
-            // Re-render chips (simple approach: clear and rebuild or just remove DOM node)
-            // For efficiency, we'll just remove the specific DOM element
-            const chips = Array.from(tagsList.children);
-            chips.forEach(c => {
-                if (c.querySelector('.tag-remove').getAttribute('onclick').includes(id)) {
-                    c.remove();
-                }
-            });
-        };
-
-        // Helper for manual typing (if user types exact name)
-        window.addTag = (name) => {
-            const match = allCategories.find(c => c.name.toLowerCase() === name.toLowerCase());
-            if (match) {
-                window.addTagById(match.id, match.name);
-            } else {
-                showToast(`Category "${name}" not found. Select from list.`, true);
-            }
-        };
-
-        function removeLastTag() {
-            if (selectedCategoryIds.length > 0) {
-                const lastId = selectedCategoryIds[selectedCategoryIds.length - 1];
-                window.removeTagById(lastId);
-            }
+            selectedCategoryIds.push(category.id);
+        } else {
+            selectedCategoryIds = selectedCategoryIds.filter(id => id !== category.id);
         }
+        renderSelectedCategories();
+    }
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                hideSuggestions();
-            }
-        });
+    function renderSelectedCategories() {
+        const selected = allCategories.filter(category => selectedCategoryIds.includes(category.id));
+        document.getElementById('categoryToggleText').textContent = selected.length
+            ? `${selected.length} categor${selected.length === 1 ? 'y' : 'ies'} selected`
+            : 'Select up to 5 categories';
+        const chips = document.getElementById('selectedCategories');
+        chips.replaceChildren(...selected.map(category => {
+            const chip = document.createElement('span');
+            chip.className = 'category-chip';
+            chip.textContent = category.name;
+            return chip;
+        }));
     }
 
     // --- IMAGE HANDLING (Same as before) ---
@@ -576,6 +477,11 @@
 
         const loggedIn = !!(await getSession());
         if (!loggedIn) { window.location.href = '/login'; return; }
+        if (selectedCategoryIds.length === 0) {
+            showToast('Choose at least one category.', true);
+            document.getElementById('categoryToggle').focus();
+            return;
+        }
 
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;

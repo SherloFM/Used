@@ -109,6 +109,28 @@
             box-shadow: 0 0 0 3px rgba(160, 108, 213, 0.1);
         }
 
+        .password-field { position: relative; }
+        .password-field input { padding-right: 48px; }
+        .password-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #667085;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .password-toggle:hover, .password-toggle:focus-visible {
+            background: #f3f4f6;
+            color: var(--brand);
+            outline: none;
+        }
+
         /* Submit Button */
         .submit-btn {
             width: 100%;
@@ -180,7 +202,13 @@
 
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                    <div class="password-field">
+                        <input type="password" id="loginPassword" placeholder="••••••••"
+                               autocomplete="current-password" required>
+                        <button type="button" class="password-toggle"
+                                onclick="togglePassword('loginPassword', this)"
+                                aria-label="Show password" aria-pressed="false">◉</button>
+                    </div>
                 </div>
 
                 <a href="/forgot-password" class="forgot-link">Forgot Password?</a>
@@ -208,7 +236,13 @@
 
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" id="regPassword" placeholder="Min 6 characters" required minlength="6">
+                    <div class="password-field">
+                        <input type="password" id="regPassword" placeholder="Min 6 characters"
+                               autocomplete="new-password" required minlength="6">
+                        <button type="button" class="password-toggle"
+                                onclick="togglePassword('regPassword', this)"
+                                aria-label="Show password" aria-pressed="false">◉</button>
+                    </div>
                 </div>
 
                 <button type="submit" class="submit-btn" id="regBtn">Sign Up</button>
@@ -255,6 +289,16 @@
     });
 
     // --- HELPERS ---
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        button.setAttribute('aria-pressed', String(!showing));
+        button.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        button.textContent = showing ? '◉' : '⊘';
+        input.focus();
+    }
+
     function showMessage(elementId, text, type) {
         const el = document.getElementById(elementId);
         el.textContent = text;
@@ -334,7 +378,7 @@
             });
 
             if (res.ok) {
-                showMessage('registerMsg', 'Account created! Verifying email...', 'success');
+                showMessage('registerMsg', 'Account created! Verify your email to finish signing in...', 'success');
 
                 // Save email for verify page context
                 sessionStorage.setItem('pendingVerifyEmail', payload.email);

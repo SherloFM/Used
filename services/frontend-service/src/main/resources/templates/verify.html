@@ -280,9 +280,12 @@
             });
 
             if (res.ok) {
-                showMessage("Email verified successfully! Redirecting...", "success");
+                // Verification now also issues the HttpOnly authentication
+                // cookie. Refresh CSRF after the server rotates the cookie.
+                await loadCsrfToken();
+                showMessage("Email verified! Opening your profile...", "success");
                 sessionStorage.removeItem('pendingVerifyEmail');
-                setTimeout(() => window.location.href = '/', 1500);
+                setTimeout(() => window.location.href = '/profile', 1000);
             } else {
                 const errorText = await res.text();
                 showMessage(errorText || "Invalid or expired code.", "error");

@@ -4,7 +4,9 @@ import com.example.marketplace.model.Categories;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface CategoryRepository extends JpaRepository<Categories, Long> {
     Optional<Categories> findByNameIgnoreCase(String name);
+    List<Categories> findAllByOrderByNameAsc();
 }

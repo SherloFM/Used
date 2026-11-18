@@ -79,6 +79,26 @@ public class AuthenticationSteps {
         assertThat(body).contains("\"id\"");
     }
 
+    @Then("the stored password accepts {string}")
+    public void storedPasswordAccepts(String rawPassword) {
+        User user = userRepository.findByEmail("newuser@test.com");
+        assertThat(user).isNotNull();
+        assertThat(passwordEncoder.matches(rawPassword, user.getPassword())).isTrue();
+    }
+
+    @When("the user verifies the registered email {string}")
+    public void verifyRegisteredEmail(String email) throws Exception {
+        User user = userRepository.findByEmail(email);
+        assertThat(user).isNotNull();
+        String body = String.format("{\"email\":\"%s\",\"code\":\"%s\"}",
+                email, user.getVerificationCode());
+        lastResult = mockMvc.perform(post("/auth/user/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .with(SecurityMockMvcRequestPostProcessors.csrf()))
+                .andReturn();
+    }
+
     @Given("a user exists with email {string} and password {string}")
     public void userExists(String email, String password) {
         if (userRepository.findByEmail(email) != null) return;

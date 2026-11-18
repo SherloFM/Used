@@ -42,9 +42,22 @@ public class UserController {
 
     @PostMapping("/verify")
     public ResponseEntity<?> verifyEmail(
-            @RequestBody VerificationRequests request
+            @RequestBody VerificationRequests request,
+            HttpServletRequest servletRequest,
+            HttpServletResponse servletResponse
     ){
-        return userService.verifyEmail(request);
+        ResponseEntity<?> result = userService.verifyEmail(request);
+        if (result.getStatusCode().is2xxSuccessful()
+                && result.getBody() instanceof LoginResponses login
+                && login.getToken() != null) {
+            servletResponse.addHeader(HttpHeaders.SET_COOKIE,
+                    authCookies.issue(login.getToken()).toString());
+            csrfTokens.saveToken(null, servletRequest, servletResponse);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Email verified and signed in",
+                    "role", login.getRole()));
+        }
+        return result;
     }
 
     @PostMapping("/login")
