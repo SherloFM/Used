@@ -12,4 +12,14 @@ for path in /api/internal/users/1 /actuator/health; do
   code=$(curl --silent --show-error --max-time 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1$path")
   [[ "$code" == 404 ]] || { echo "Gateway failed to block $path: $code" >&2; exit 1; }
 done
+# Once HTTPS is configured, exercise the real certificate on loopback: --resolve
+# keeps DNS out of it, and the chain is validated against the system store, so a
+# broken or expired certificate fails the deployment gate instead of the browser.
+if [[ -f /etc/used/https.env ]]; then
+  domain=$(sed -n 's/^HTTPS_DOMAIN=//p' /etc/used/https.env)
+  if [[ -n "$domain" ]]; then
+    curl --fail --silent --show-error --max-time 10 \
+      --resolve "$domain:443:127.0.0.1" "https://$domain/healthz" >/dev/null
+  fi
+fi
 echo 'All service health checks and gateway smoke checks passed.'

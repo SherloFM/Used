@@ -186,7 +186,85 @@ is untouched. A deployment is not zero-downtime, and rollback cannot undo data
 writes made while the failed version was running. SMTP failure also triggers
 rollback. Review `/opt/used/health-last.log` and service journals for diagnosis.
 
-## 7. Verify, then enable application boot startup
+## 7. HTTPS
+
+The site is served over plain HTTP until a certificate exists. A browser on a
+network that blocks outbound TCP 80 needs HTTPS, so this step is what makes the
+site usable for the owner.
+
+Prerequisites, all outside the instance:
+
+1. **Elastic IP.** EC2 → Elastic IPs → allocate (if none) and associate it with
+   the instance. A dynamic public IPv4 changes on stop/start and breaks the DNS
+   record. Record the address; the domain must point at it.
+2. **Domain.** Cloudflare Registrar, or any registrar with DNS control.
+3. **DNS record.** Cloudflare → DNS → Records → Add record: type **A**, name
+   `used` (or `@` for the apex), IPv4 **the Elastic IP**, proxy status
+   **DNS only** (grey cloud) for the first issuance. An orange-cloud record
+   usually still works because the challenge is also served on 443, but the grey
+   cloud removes a variable while debugging.
+4. **Security group.** Inbound 80 and 443 from `0.0.0.0/0`. Port 80 stays open
+   permanently: renewal uses it.
+
+Confirm the record resolves to the Elastic IP **before** requesting a
+certificate; a wrong A record is the most common failure.
+
+```bash
+nslookup used.example.com # end
+```
+
+Validate the generated nginx configuration without changing the running site
+(the generator writes to `/tmp`, `nginx -t` only parses it):
+
+```bash
+cd ~/used && git pull # end
+```
+
+```bash
+sudo python3 deploy/ec2/render-nginx.py gateway/nginx.conf /tmp/used-nginx-test.conf && sudo nginx -t -c /tmp/used-nginx-test.conf # end
+```
+
+Then issue the certificate and switch the site to HTTPS:
+
+```bash
+sudo bash deploy/ec2/enable-https.sh used.example.com you@example.com # end
+```
+
+The script stops at the first failure and leaves plain HTTP working. It:
+
+1. records the hostname in `/etc/used/https.env` (no secrets, mode 0644),
+2. installs certbot (distribution package, else `/opt/certbot` virtualenv),
+3. serves `/.well-known/acme-challenge/` from `/var/www/certbot` and reloads,
+4. issues the certificate with the webroot method,
+5. re-renders nginx with a 443 listener, HTTP→HTTPS redirect for the real
+   hostname, and HSTS,
+6. sets `AUTH_COOKIE_SECURE=true` and `FRONTEND_ORIGINS=https://DOMAIN`, then
+   restarts the nine services so the cookies stop travelling over plain HTTP,
+7. installs the `used-certbot-renew.timer` daily renewal (nginx reload hook),
+8. waits for the health gate, which now validates the real certificate on
+   loopback through `--resolve`.
+
+Plain HTTP still answers on `127.0.0.1` and on the bare address, so the health
+gate and `curl` diagnostics keep working; only requests carrying the real
+hostname are redirected. `render-nginx.py` keeps the TLS listener whenever
+`/etc/used/https.env` and the certificate exist, so re-running `install-host.sh`
+does not downgrade the site.
+
+Verify:
+
+```bash
+curl -I https://used.example.com # end
+```
+
+```bash
+systemctl list-timers used-certbot-renew.timer --no-pager # end
+```
+
+Then load the site in a browser, log in, and confirm the `used_auth` cookie is
+`Secure` in devtools. Renewal is only proven after the first renewal window;
+`certbot renew --dry-run` is the explicit check.
+
+## 8. Verify, then enable application boot startup
 
 After the first successful Jenkins deployment, open `http://PUBLIC_IP` and test
 registration, login, listing/image creation and a payment with demo funds.

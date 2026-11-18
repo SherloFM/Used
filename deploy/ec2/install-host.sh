@@ -42,17 +42,9 @@ EOF
 install -m 644 "$repo/deploy/ec2/used@.service" /etc/systemd/system/used@.service
 
 # Preserve the canonical route map; only adapt listen/upstream addresses.
-python3 - "$repo/gateway/nginx.conf" <<'PY'
-import pathlib, re, sys
-text = pathlib.Path(sys.argv[1]).read_text()
-text = re.sub(r'^resolver .*;\n', '', text, flags=re.M)
-text = text.replace('listen 8080;', 'listen 80 default_server;')
-text = re.sub(r'http://[a-z]+-service:(808[0-8])', r'http://127.0.0.1:\1', text)
-# This is a complete config, not an http fragment. Use a separate root config
-# to avoid the distribution default server competing for the same address.
-pathlib.Path('/etc/nginx/used.conf').write_text(
-    'events {}\nhttp {\ninclude /etc/nginx/mime.types;\n' + text + '\n}\n')
-PY
+# The generator also keeps an existing TLS listener, so re-running this script
+# on a site that already has HTTPS does not downgrade it to plain HTTP.
+python3 "$repo/deploy/ec2/render-nginx.py" "$repo/gateway/nginx.conf" /etc/nginx/used.conf
 install -d /etc/systemd/system/nginx.service.d
 cat > /etc/systemd/system/nginx.service.d/used.conf <<'EOF'
 [Service]
