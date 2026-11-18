@@ -6,7 +6,7 @@ import com.example.marketplace.service.WalletService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
-/** Balance, deposit and withdrawal for the logged-in user's wallet. */
+/** Wallet balance for a member and administrator-controlled wallet funding. */
 @RestController
 @RequestMapping("/api/wallet")
 public class WalletController {
@@ -22,13 +22,9 @@ public class WalletController {
         return walletService.getWallet();
     }
 
-    @PostMapping("/add")
-    public WalletStatus addMoney(@Valid @RequestBody MoneyRequest request) {
-        return walletService.addMoney(request.getAmount());
-    }
-
-    @PostMapping("/remove")
-    public WalletStatus removeMoney(@Valid @RequestBody MoneyRequest request) {
-        return walletService.removeMoney(request.getAmount());
+    @PostMapping("/admin/{userId}/fund")
+    public WalletStatus fundWallet(@PathVariable Long userId,
+                                   @Valid @RequestBody MoneyRequest request) {
+        return walletService.fundWallet(userId, request.getAmount());
     }
 }

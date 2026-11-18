@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 class InternalListingSecurityTest {
     private static final String TOKEN = "test-internal-token-at-least-32-characters";
@@ -130,6 +131,14 @@ class InternalListingSecurityTest {
     }
 
     @Test
+    void onlyAdministratorsCanReachWalletFunding() throws Exception {
+        mvc.perform(post("/api/wallet/admin/42/fund").cookie(user("USER")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/wallet/admin/42/fund").cookie(user("ADMIN")).with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void shortOrMissingSecretIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> new InternalTokenFilter(null));
         assertThrows(IllegalArgumentException.class, () -> new InternalTokenFilter("short"));
@@ -151,6 +160,7 @@ class InternalListingSecurityTest {
     static class Probe {
         @PostMapping("/api/internal/test") String internal() { return "ok"; }
         @PostMapping("/api/profile") String update() { return "ok"; }
+        @PostMapping("/api/wallet/admin/{userId}/fund") String fund(@PathVariable Long userId) { return "ok"; }
         @GetMapping("/api/listings/mine") String mine() { return "ok"; }
     }
 }

@@ -12,9 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 /**
- * Wallet operations for the logged-in user. Every balance change is one
- * atomic SQL statement (see WalletRepository), so two tabs adding or removing
- * money at the same time can never lose an update.
+ * Wallet operations. Every balance change is one atomic SQL statement (see
+ * WalletRepository), so concurrent funding and payment cannot lose an update.
  */
 @Service
 public class WalletService {
@@ -44,21 +43,12 @@ public class WalletService {
     }
 
     @Transactional
-    public WalletStatus addMoney(BigDecimal amount) {
-        CurrentActor actor = currentActorProvider.get();
-        walletRepository.createIfMissing(actor.id());
-        walletRepository.credit(actor.id(), amount);
-        return balanceOf(actor.id());
-    }
-
-    @Transactional
-    public WalletStatus removeMoney(BigDecimal amount) {
-        CurrentActor actor = currentActorProvider.get();
-        walletRepository.createIfMissing(actor.id());
-        if (walletRepository.debit(actor.id(), amount) == 0) {
-            throw new InformationExistException("You do not have enough money in your wallet");
+    public WalletStatus fundWallet(Long userId, BigDecimal amount) {
+        walletRepository.createIfMissing(userId);
+        if (walletRepository.credit(userId, amount) != 1) {
+            throw new InformationExistException("Wallet could not be funded");
         }
-        return balanceOf(actor.id());
+        return balanceOf(userId);
     }
 
     private WalletStatus balanceOf(Long userId) {

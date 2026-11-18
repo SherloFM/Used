@@ -135,7 +135,9 @@
         .stats-row { display: flex; gap: 3rem; margin-top: 2rem; }
         .stat-item h3 { font-size: 2rem; color: #2c3e50; }
         .stat-item p { font-size: 0.9rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        .hero-illustration { width: 100%; max-width: 520px; border-radius: 20px; display: block; margin: 0 auto; box-shadow: 0 20px 50px rgba(118,80,162,0.28); }
+        .hero-photo-grid { width: 100%; max-width: 540px; height: 410px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 0.9fr; grid-template-rows: 1fr 1fr; gap: 10px; padding: 10px; background: #fff; border-radius: 24px; box-shadow: 0 20px 50px rgba(44,62,80,0.2); overflow: hidden; }
+        .hero-photo-grid img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 14px; }
+        .hero-photo-grid img:first-child { grid-row: 1 / 3; }
 
         /* FEATURES STRIP */
         .features-strip {
@@ -178,7 +180,8 @@
 
         /* RESPONSIVE */
         @media (max-width: 768px) {
-            .hero { grid-template-columns: 1fr; text-align: center; }
+            .hero { grid-template-columns: 1fr; text-align: center; gap: 2rem; }
+            .hero-photo-grid { height: 330px; }
             .cta-buttons, .stats-row { justify-content: center; }
             .search-container { display: none; } /* Hide complex search on mobile for simplicity or stack it */
             .features-strip { margin-top: 0; }
@@ -261,18 +264,20 @@
             <a href="/create-listing" class="btn-outline disabled-action" onclick="handleLockedInteraction(event)">SELL NOW</a>
         </div>
         <div class="stats-row">
-            <div class="stat-item"><h3>--</h3><p>Active Items</p></div>
-            <div class="stat-item"><h3>--</h3><p>Trusted Sellers</p></div>
+            <div class="stat-item"><h3 id="activeListingCount">0</h3><p>Active Items</p></div>
+            <div class="stat-item"><h3 id="categoryCount">0</h3><p>Categories</p></div>
         </div>
     </div>
-    <div class="hero-image">
-        <img src="/images/hero-marketplace.svg" alt="Illustration of buying and selling second-hand goods" class="hero-illustration">
+    <div class="hero-photo-grid" aria-label="Real second-hand products available on Used Marketplace">
+        <img src="/images/sofa.jpg" alt="Pre-owned green sofa">
+        <img src="/images/camera.jpg" alt="Pre-owned camera and lenses">
+        <img src="/images/headphones.jpg" alt="Pre-owned headphones">
     </div>
 </section>
 
 <!-- FEATURES STRIP -->
 <div class="features-strip">
-    <div class="feature-card fc-green"><div class="feature-icon"><i class="fas fa-shield-alt"></i></div><div class="feature-text"><h4>Secure Payments</h4><p>Held until delivery.</p></div></div>
+    <div class="feature-card fc-green"><div class="feature-icon"><i class="fas fa-shield-alt"></i></div><div class="feature-text"><h4>Flexible Payments</h4><p>Wallet, Almotawaj, or cash on delivery.</p></div></div>
     <div class="feature-card fc-dark"><div class="feature-icon"><i class="fas fa-check-circle"></i></div><div class="feature-text"><h4>Verified Users</h4><p>Email confirmed accounts.</p></div></div>
     <div class="feature-card fc-orange"><div class="feature-icon"><i class="fas fa-map-marker-alt"></i></div><div class="feature-text"><h4>Local Pickup</h4><p>Meet nearby sellers.</p></div></div>
 </div>
@@ -286,9 +291,9 @@
 
     <!-- Empty State Message -->
     <div id="emptyStateMessage" style="grid-column: 1/-1; text-align:center; padding: 4rem; background:#f9f9f9; border-radius:12px; border:2px dashed #ddd;">
-        <i class="fas fa-search-location" style="font-size:3rem; color:#bbb; margin-bottom:1rem;"></i>
-        <h3>No Items Loaded Yet</h3>
-        <p style="color:#888; margin-bottom:1.5rem;">Use the search bar above to find items by category or keyword.</p>
+        <i class="fas fa-spinner fa-spin" style="font-size:3rem; color:#bbb; margin-bottom:1rem;"></i>
+        <h3>Loading Latest Items</h3>
+        <p style="color:#888; margin-bottom:1.5rem;">Finding active listings near you.</p>
     </div>
 
     <!-- Grid Container -->
@@ -349,7 +354,11 @@
 
      // 2. Initialize Systems
      await initAuthState();
-     loadAllCategoriesForTags().then(() => applyUrlSearchParams());
+     loadAllCategoriesForTags().then(() => {
+         document.getElementById('categoryCount').textContent = allCategories.length;
+         applyUrlSearchParams();
+         fetchListings();
+     });
      setupGlobalTagInput();
      setupEventListeners();
  });
@@ -372,7 +381,6 @@
      });
 
      hideGlobalSuggestions();
-     if (currentSession) performGlobalSearch();
  }
 
  function cacheElements() {
@@ -473,7 +481,7 @@
      // Typing triggers suggestions
      els.catInputEl.addEventListener('input', (e) => {
          const val = e.target.value.trim().toLowerCase();
-         if (val.length > 0 && currentSession) showGlobalSuggestions(val);
+         if (val.length > 0) showGlobalSuggestions(val);
          else hideGlobalSuggestions();
      });
 
@@ -556,7 +564,6 @@
  // SEARCH & PAGINATION LOGIC
  // ==========================================
  function performGlobalSearch() {
-     if (!currentSession) { handleLockedInteraction(); return; }
      currentPage = 0;
      fetchListings();
  }
@@ -584,7 +591,10 @@
          loader.remove();
 
          if (!res.ok) throw new Error('API Error');
-         const pageData = await res.json();
+          const pageData = await res.json();
+          if (!keyword && selectedCategoryIds.length === 0 && currentPage === 0) {
+              document.getElementById('activeListingCount').textContent = pageData.totalElements;
+          }
 
          if (pageData.content.length === 0) {
              els.emptyMsgEl.innerHTML = `<h3>No Items Found</h3><p>Try different keywords.</p>`;

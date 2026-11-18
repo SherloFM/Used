@@ -153,8 +153,11 @@ with `400`/`413`. Profile and listing responses expose `imgUrl`; old inline
 | POST | `/api/payments/{id}/cod/accept` | Seller accepts queued COD request |
 | POST | `/api/payments/{id}/cod/decline` | Seller declines COD request |
 | GET | `/api/wallet` | Current wallet |
-| POST | `/api/wallet/add` | Amount body, e.g. `{"amount":100.00}` |
-| POST | `/api/wallet/remove` | Amount body; subject to available balance |
+| POST | `/api/wallet/admin/{userId}/fund` | **Admin only.** Add funds to the selected user's wallet with an amount body, e.g. `{"amount":100.00}` |
+
+Members cannot add or remove their own wallet funds. Administrators fund a
+member from the Users page in the admin portal; payment debits and seller
+credits remain part of Marketplace's atomic payment transaction.
 
 Payment acceptance example: `{"paymentId":42,"duplicate":false,"queuePosition":1}`.
 **202 is not payment completion.** Poll for `COMPLETED` or `FAILED`. Methods are

@@ -98,6 +98,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/listings", "/api/listings/search", "/api/listings/*",
                                 "/api/categories", "/api/categories/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/wallet/admin/*/fund").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/listings/admin/*").hasRole("ADMIN")
                         .anyRequest().authenticated());
 

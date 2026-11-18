@@ -8,7 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/** Body for adding or removing money from the wallet. */
+/** Body for an administrator wallet-funding command. */
 @Getter
 @Setter
 public class MoneyRequest {
