@@ -67,6 +67,7 @@ values = {
     'RABBITMQ_PASSWORD': os.environ['PF_RABBIT_PASSWORD'],
     'KAFKA_CLUSTER_ID': os.environ['PF_KAFKA_CLUSTER_ID'],
     'FRONTEND_ORIGINS': f"http://{os.environ['PF_PUBLIC_IP']}",
+    'WALLET_GATEWAY_PUBLIC_BASE_URL': f"http://{os.environ['PF_PUBLIC_IP']}",
     'SPRING_MAIL_HOST': os.environ['PF_SMTP_HOST'],
     'SPRING_MAIL_PORT': os.environ['PF_SMTP_PORT'],
     'SPRING_MAIL_USERNAME': os.environ['PF_SMTP_USER'],

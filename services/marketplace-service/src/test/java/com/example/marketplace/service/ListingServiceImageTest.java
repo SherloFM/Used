@@ -55,12 +55,12 @@ class ListingServiceImageTest {
     }
 
     @Test
-    void storesMediaUrlAndClearsInlineBytes() throws IOException {
+    void storesMediaPathAndClearsInlineBytes() throws IOException {
         when(media.upload(eq(1L), any())).thenReturn(response("http://localhost:8088/api/media/new"));
 
         Listings updated = service.uploadImage(5L, image());
 
-        assertEquals("http://localhost:8088/api/media/new", updated.getImgUrl());
+        assertEquals("/api/media/new", updated.getImgUrl());
         assertNull(updated.getImg());
         assertNull(updated.getImgtype());
         verify(listings).saveAndFlush(listing);
@@ -90,7 +90,7 @@ class ListingServiceImageTest {
 
     @Test
     void repeatedUrlDoesNotBroadcastAnImageChange() throws IOException {
-        String url = "http://localhost:8088/api/media/same";
+        String url = "/api/media/same";
         listing.setImgUrl(url);
         when(media.upload(eq(1L), any())).thenReturn(response(url));
 
@@ -100,7 +100,12 @@ class ListingServiceImageTest {
     }
 
     private MediaUploadResponse response(String url) {
-        return new MediaUploadResponse(UUID.randomUUID(), "/api/media/new", url,
+        // Media returns both a relative path and an absolute URL; the service
+        // stores the path.
+        String path = url.contains("/api/media/")
+                ? url.substring(url.indexOf("/api/media/"))
+                : url;
+        return new MediaUploadResponse(UUID.randomUUID(), path, url,
                 "image/png", 3, "abc");
     }
 

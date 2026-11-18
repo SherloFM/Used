@@ -295,8 +295,8 @@
             border-radius: var(--radius); box-shadow: var(--shadow);
             overflow: hidden; display: flex; flex-direction: column;
         }
-        .ml-img { height: 150px; background: #f1f2f6; display: flex; align-items: center; justify-content: center; color: #b6bcc6; font-size: 2.2rem; }
-        .ml-img img { width: 100%; height: 100%; object-fit: cover; }
+        .ml-img { aspect-ratio: 4 / 3; height: auto; background: #f1f2f6; display: flex; align-items: center; justify-content: center; color: #b6bcc6; font-size: 2.2rem; overflow: hidden; }
+        .ml-img img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
         .ml-info { padding: .8rem 1rem; display: flex; flex-direction: column; gap: .3rem; flex: 1; }
         .ml-title { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ml-price { color: var(--success); font-weight: 700; }
@@ -383,6 +383,26 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- WALLET BALANCE (funded by an administrator) -->
+        <div class="section-card" style="margin-bottom:2rem;">
+            <h3 class="section-title"><i class="fas fa-wallet"></i> My Wallet</h3>
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div>
+                    <div id="walletBalance" style="font-size:2rem; font-weight:700; color:var(--brand); line-height:1.1;">--</div>
+                    <div style="color:#7f8c8d; font-size:0.85rem;">Available balance</div>
+                </div>
+                <button type="button" id="walletRefreshBtn" onclick="loadWallet()"
+                        style="margin-left:auto; padding:8px 16px; border:1px solid #ddd; background:white; border-radius:8px; cursor:pointer; font-weight:600; color:#555;">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <p style="margin:1rem 0 0 0; padding:10px 12px; background:#fff8e6; border-left:4px solid #f1c40f; border-radius:6px; color:#6b5a1e; font-size:0.9rem;">
+                <i class="fas fa-info-circle"></i>
+                Money is added to this wallet by an administrator. To top up, contact support and an admin will credit your balance.
+            </p>
+            <p id="walletError" style="display:none; margin:0.75rem 0 0 0; color:#e74c3c; font-size:0.9rem;"></p>
         </div>
 
         <!-- TABS: Profile / My Listings -->
@@ -488,7 +508,10 @@
             // 2. Fetch Activity History
             loadUserActivity();
 
-            // 3. Wire up the Profile / My Listings tabs
+            // 3. Wallet balance (created on first view by the Marketplace API)
+            loadWallet();
+
+            // 4. Wire up the Profile / My Listings tabs
             initProfileTabs();
         } catch (err) {
             console.error(err);
@@ -539,6 +562,31 @@
         document.getElementById('lastName').value = data.lastName || '';
         document.getElementById('phoneNumber').value = data.phoneNumber || '';
         document.getElementById('bio').value = data.bio || '';
+    }
+
+    // --- WALLET ---
+    async function loadWallet() {        const balanceEl = document.getElementById('walletBalance');
+        const errorEl = document.getElementById('walletError');
+        const btn = document.getElementById('walletRefreshBtn');
+        if (!balanceEl) return;
+
+        if (btn) btn.disabled = true;
+        if (errorEl) errorEl.style.display = 'none';
+        try {
+            const res = await authenticatedFetch('/api/wallet');
+            if (!res.ok) throw new Error('Could not load your wallet balance.');
+            const wallet = await res.json();
+            const value = Number(wallet.balance);
+            balanceEl.textContent = '$' + (Number.isFinite(value) ? value.toFixed(2) : '0.00');
+        } catch (err) {
+            balanceEl.textContent = '--';
+            if (errorEl) {
+                errorEl.textContent = err.message || 'Could not load your wallet balance.';
+                errorEl.style.display = 'block';
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
     }
 
     // --- ACTIVITY LOGIC ---
@@ -658,12 +706,19 @@
         }
     }
 
+    function myListingImageFailed(img) {
+        img.onerror = null;
+        if (img.parentNode) {
+            img.parentNode.innerHTML = '<i class="fas fa-image" aria-hidden="true"></i>';
+        }
+    }
+
     function myListingCard(item) {
         const isSold = item.status === 'SOLD';
         const isDelisted = item.status === 'DELISTED';
         let image;
         if (item.imgUrl) {
-            image = `<img src="${escapeHtml(item.imgUrl)}" alt="">`;
+            image = `<img src="${escapeHtml(item.imgUrl)}" alt="" loading="lazy" decoding="async" onerror="myListingImageFailed(this)">`;
         } else {
             image = `<i class="fas fa-image" aria-hidden="true"></i>`;
         }

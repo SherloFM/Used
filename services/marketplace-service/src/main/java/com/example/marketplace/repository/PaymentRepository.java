@@ -79,6 +79,18 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                               @Param("from") Payment.Status from,
                               @Param("to") Payment.Status to);
 
+    /**
+     * Claim a gateway payment for completion. PENDING is the normal case; FAILED
+     * is claimed too because a signed callback can arrive after the local
+     * expiry sweep and must still be honoured (the money was taken).
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Payment p SET p.status = :processing, p.failureReason = null " +
+           "WHERE p.id = :id AND p.status IN :claimable")
+    int claimForGatewayCompletion(@Param("id") Long id,
+                                  @Param("processing") Payment.Status processing,
+                                  @Param("claimable") Collection<Payment.Status> claimable);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Payment p SET p.status = :completed, p.processedAt = CURRENT_TIMESTAMP " +
            "WHERE p.id = :id AND p.status = :from")

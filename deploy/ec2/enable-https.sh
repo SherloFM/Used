@@ -89,6 +89,18 @@ sed -i "s|^FRONTEND_ORIGINS=.*|FRONTEND_ORIGINS=https://$domain|" "$env_file"
 grep -qx 'AUTH_COOKIE_SECURE=true' "$env_file" || { echo 'Could not set AUTH_COOKIE_SECURE' >&2; exit 1; }
 grep -qx "FRONTEND_ORIGINS=https://$domain" "$env_file" || { echo 'Could not set FRONTEND_ORIGINS' >&2; exit 1; }
 
+# The wallet gateway must send the buyer back to the HTTPS origin, otherwise the
+# Secure auth cookie and CSRF cookie are not sent on the return page.
+set_env() {
+  local key=$1 value=$2
+  if grep -q "^$key=" "$env_file"; then
+    sed -i "s|^$key=.*|$key=$value|" "$env_file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$env_file"
+  fi
+}
+set_env WALLET_GATEWAY_PUBLIC_BASE_URL "https://$domain"
+
 for service in "${services[@]}"; do
   systemctl restart "used@$service.service"
 done

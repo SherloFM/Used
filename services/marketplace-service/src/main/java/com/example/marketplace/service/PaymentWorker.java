@@ -184,8 +184,71 @@ public class PaymentWorker {
         // a sale that then rolled back.
     }
 
-    /** Seller declined: the payment is closed with reason COD_DECLINED. */
+    /**
+     * Completes an Almotawaj Wallet payment after the gateway confirms PAID.
+     *
+     * The money is already in the marketplace's gateway wallet, so the buyer's
+     * local balance is NOT debited: only the seller is credited. The listing
+     * claim, the seller credit, the Transactions row and the payment status
+     * flip stay in this one local transaction, exactly like the wallet path.
+     *
+     * Idempotent: a repeated callback or a return redirect after the callback
+     * finds COMPLETED and does nothing.
+     */
     @Transactional
+    public void completeGatewayPayment(Long paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentFailedException("PAYMENT_NOT_FOUND"));
+
+        if (payment.getMethod() != Payment.Method.CARD) {
+            throw new PaymentFailedException("NOT_WALLET_GATEWAY");
+        }
+        if (payment.getStatus() == Payment.Status.COMPLETED) {
+            return;
+        }
+
+        if (paymentRepository.claimForGatewayCompletion(
+                paymentId,
+                Payment.Status.PROCESSING,
+                List.of(Payment.Status.PENDING, Payment.Status.FAILED)) == 0) {
+            Payment current = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new PaymentFailedException("PAYMENT_NOT_FOUND"));
+            if (current.getStatus() == Payment.Status.COMPLETED) {
+                return;
+            }
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+
+        int claimed = listingRepository.updateStatusIfCurrent(
+                payment.getListing().getId(), Listings.Status.ACTIVE, Listings.Status.SOLD);
+        if (claimed == 0) {
+            throw new PaymentFailedException("ALREADY_SOLD");
+        }
+
+        Listings sold = listingRepository.findById(payment.getListing().getId())
+                .orElseThrow(() -> new PaymentFailedException("LISTING_NOT_FOUND"));
+        listingLifecycle.sold(sold, ListingEvent.Source.PAYMENT);
+
+        // Only the seller's wallet changes: the buyer already paid the gateway.
+        if (walletRepository.credit(payment.getSellerId(), payment.getAmount()) == 0) {
+            throw new PaymentFailedException("WALLET_MISSING");
+        }
+
+        Transactions transaction = new Transactions();
+        transaction.setListing(payment.getListing());
+        transaction.setBuyerId(payment.getBuyerId());
+        transaction.setSellerId(payment.getSellerId());
+        transaction.setAmount(payment.getAmount().doubleValue()); // legacy Transactions.amount is double
+        transaction.setStatus(Transactions.Status.COMPLETED);
+        transactionsRepository.save(transaction);
+
+        if (paymentRepository.markCompletedIfCurrent(
+                paymentId, Payment.Status.PROCESSING, Payment.Status.COMPLETED) == 0) {
+            throw new PaymentFailedException("ALREADY_HANDLED");
+        }
+    }
+
+    /** Seller declined: the payment is closed with reason COD_DECLINED. */    @Transactional
     public void declineCodPayment(Long paymentId, Long sellerId) {
         loadPendingCodForSeller(paymentId, sellerId);
 

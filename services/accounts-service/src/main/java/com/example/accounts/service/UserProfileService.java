@@ -87,7 +87,8 @@ public class UserProfileService {
         // Store first. If Media rejects the image or is unreachable, the existing
         // profile row is untouched. Bytes are cleared only after the new URL is known.
         MediaUploadResponse uploaded = mediaClient.upload(user.getId(), imgFile);
-        profile.setImgUrl(uploaded.url());
+        // Relative path: the avatar must resolve on every host that serves the site.
+        profile.setImgUrl(uploaded.path());
         profile.setImg(null);
         profile.setImgtype(null);
 

@@ -142,7 +142,9 @@
         .preview-img {
             width: 100%;
             height: 300px;
-            object-fit: cover;
+            /* Show the whole photo in the preview: the seller must see what they picked. */
+            object-fit: contain;
+            background: #f4f5f7;
             display: none;
         }
 
@@ -367,7 +369,7 @@
                     <img id="previewImg" class="preview-img" alt="Preview">
                     <button type="button" id="removeImgBtn" class="remove-btn">&times;</button>
                 </div>
-                <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFileSelect(this)">
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,.jpg,.jpeg,.png" style="display:none;" onchange="handleFileSelect(this)">
             </div>
 
             <button type="submit" class="submit-btn" id="submitBtn">Post Listing</button>
@@ -519,8 +521,15 @@
     function handleFileSelect(input) {
         const file = input.files[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { showToast("Image too large.", true); return; }
-        if (!file.type.startsWith('image/')) { showToast("Invalid file type.", true); return; }
+        if (file.size > 5 * 1024 * 1024) { showToast("That image is larger than 5 MB. Please choose a smaller photo.", true); return; }
+        // Media stores JPEG and PNG only. Accepting HEIC/WebP/GIF here would let
+        // the seller believe the photo uploaded while the server rejected it.
+        const allowed = ['image/jpeg', 'image/png'];
+        if (!allowed.includes(file.type)) {
+            showToast("Only JPEG and PNG images are supported. Please convert this photo and choose it again.", true);
+            input.value = '';
+            return;
+        }
 
         selectedFile = file;
         const reader = new FileReader();
@@ -605,10 +614,21 @@
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('img', selectedFile);
-                await authenticatedFetch(`/api/listings/${listingId}/image`, {
+                const imgRes = await authenticatedFetch(`/api/listings/${listingId}/image`, {
                     method: 'PUT',
                     body: formData
                 });
+
+                if (!imgRes.ok) {
+                    // The listing exists; never claim success for a photo that
+                    // was not stored. Send the seller to their listing so the
+                    // image can be retried from there or replaced.
+                    const failure = await imgRes.json().catch(() => ({}));
+                    const reason = failure.message || 'the server rejected the image';
+                    showToast('Listing published, but the photo was not saved: ' + reason, true);
+                    setTimeout(() => window.location.href = '/listing/' + listingId, 2500);
+                    return;
+                }
             }
 
             showToast("Listing published successfully!");

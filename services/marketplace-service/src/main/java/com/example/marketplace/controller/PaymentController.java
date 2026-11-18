@@ -1,8 +1,10 @@
 package com.example.marketplace.controller;
 
+import com.example.marketplace.exceptions.GatewaySignatureException;
 import com.example.marketplace.exceptions.InformationExistException;
 import com.example.marketplace.model.Payment;
 import com.example.marketplace.model.responses.CodRequestStatus;
+import com.example.marketplace.model.responses.GatewayCheckoutResponse;
 import com.example.marketplace.model.responses.PaymentResult;
 import com.example.marketplace.model.responses.PaymentStatus;
 import com.example.marketplace.service.PaymentService;
@@ -18,6 +20,9 @@ import java.util.List;
  * GET  /api/payments/cod/pending                 -> seller's COD requests
  * POST /api/payments/{id}/cod/accept             -> seller accepts
  * POST /api/payments/{id}/cod/decline            -> seller declines
+ * POST /api/payments/{listingId}/gateway         -> Almotawaj Wallet checkout session
+ * GET  /api/payments/{id}/gateway?sessionId=...  -> confirm the returned checkout
+ * POST /api/payments/gateway/callback            -> signed gateway callback
  */
 @RestController
 @RequestMapping("/api/payments")
@@ -56,6 +61,38 @@ public class PaymentController {
     @PostMapping("/{id}/cod/decline")
     public PaymentStatus declineCod(@PathVariable Long id) {
         return paymentService.declineCod(id);
+    }
+
+    // ------------------------------------------------------------------
+    // Almotawaj Wallet gateway
+    // ------------------------------------------------------------------
+
+    @PostMapping("/{listingId}/gateway")
+    public ResponseEntity<GatewayCheckoutResponse> startGateway(@PathVariable Long listingId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(paymentService.startGatewayPayment(listingId));
+    }
+
+    @GetMapping("/{id}/gateway")
+    public PaymentStatus confirmGateway(@PathVariable Long id,
+                                        @RequestParam("sessionId") String sessionId) {
+        return paymentService.confirmGatewayPayment(id, sessionId);
+    }
+
+    /**
+     * Public on purpose: the gateway authenticates itself with the
+     * X-Wallet-Signature HMAC over the raw body, not with a browser session.
+     */
+    @PostMapping("/gateway/callback")
+    public ResponseEntity<Void> gatewayCallback(
+            @RequestHeader(value = "X-Wallet-Signature", required = false) String signature,
+            @RequestBody(required = false) String rawBody) {
+        try {
+            paymentService.handleGatewayCallback(rawBody == null ? "" : rawBody, signature);
+            return ResponseEntity.ok().build();
+        } catch (GatewaySignatureException failure) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 
     private Payment.Method parseMethod(String raw) {

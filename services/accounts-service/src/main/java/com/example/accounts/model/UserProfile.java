@@ -48,6 +48,26 @@ public class UserProfile {
     @Column
     private String imgUrl;
 
+    /**
+     * Absolute Media URLs written before the relative-path change are reduced
+     * to {@code /api/media/{id}} so every existing avatar renders on the site's
+     * own origin. Non-Media URLs are returned unchanged.
+     */
+    public String getImgUrl() {
+        return relativeMediaPath(imgUrl);
+    }
+
+    private static String relativeMediaPath(String url) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+        int marker = url.indexOf("/api/media/");
+        if (marker > 0 && (url.startsWith("http://") || url.startsWith("https://"))) {
+            return url.substring(marker);
+        }
+        return url;
+    }
+
     @Column
     @CreationTimestamp
     private LocalDateTime createdAt;

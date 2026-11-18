@@ -127,6 +127,38 @@ set the origin to `https://DOMAIN`. TLS is a separate user-owned setup phase.
 Infrastructure credentials initialize persistent volumes only on first startup;
 editing the env file later does not rotate existing database/broker passwords.
 
+### Almotawaj Wallet gateway
+
+Four optional keys enable paying on the Almotawaj checkout page. `configure-env.sh`
+only writes them for a fresh file, so an environment file created by an earlier
+install keeps working unchanged: with no API key the method stays visible but
+reports that wallet payments are not available yet.
+
+```text
+WALLET_GATEWAY_BASE_URL=https://wallet.almotawaj.com
+WALLET_GATEWAY_API_KEY=<from the Almotawaj API keys page>
+WALLET_GATEWAY_SIGNING_SECRET=<the same page's callback signing secret>
+WALLET_GATEWAY_PUBLIC_BASE_URL=https://used.thrifty.bid
+```
+
+Add them to `/etc/used/used.env` with an editor, then restart only Marketplace:
+
+```bash
+sudo systemctl restart used@marketplace-service # end
+```
+
+On the Almotawaj API keys page, set the callback URL to
+`https://used.thrifty.bid/api/payments/gateway/callback`. The gateway signs each
+callback with the signing secret; without that secret Marketplace rejects every
+callback with 401 rather than trusting an unsigned body. `WALLET_GATEWAY_PUBLIC_BASE_URL`
+must be the HTTPS origin, otherwise the return page loses the `Secure` auth cookie
+and the buyer appears logged out.
+
+Gateway payments are settlement records, not a wallet top-up: the buyer pays on
+the gateway, and only the seller's Marketplace balance is credited when the sale
+completes. The gateway accepts BHD 0.100–5000.000; the site currently still shows
+`$`, and no conversion is applied.
+
 ## 5. Start infrastructure and initialize the empty database
 
 ```bash
@@ -238,8 +270,9 @@ The script stops at the first failure and leaves plain HTTP working. It:
 4. issues the certificate with the webroot method,
 5. re-renders nginx with a 443 listener, HTTP→HTTPS redirect for the real
    hostname, and HSTS,
-6. sets `AUTH_COOKIE_SECURE=true` and `FRONTEND_ORIGINS=https://DOMAIN`, then
-   restarts the nine services so the cookies stop travelling over plain HTTP,
+6. sets `AUTH_COOKIE_SECURE=true`, `FRONTEND_ORIGINS=https://DOMAIN` and
+   `WALLET_GATEWAY_PUBLIC_BASE_URL=https://DOMAIN`, then restarts the nine
+   services so the cookies stop travelling over plain HTTP,
 7. installs the `used-certbot-renew.timer` daily renewal (nginx reload hook),
 8. waits for the health gate, which now validates the real certificate on
    loopback through `--resolve`.

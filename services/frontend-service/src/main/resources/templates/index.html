@@ -155,8 +155,8 @@
 
         .listing-card { background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.05); transition:transform 0.2s; }
         .listing-card:hover { transform:translateY(-5px); }
-        .listing-img { height:180px; background:#eee; display:flex; align-items:center; justify-content:center; color:#aaa; font-size:2rem; overflow: hidden;}
-        .listing-img img { width: 100%; height: 100%; object-fit: cover; }
+        .listing-img { aspect-ratio: 4 / 3; width: 100%; background:#f4f5f7; display:flex; align-items:center; justify-content:center; color:#b6bcc4; font-size:2rem; overflow: hidden; }
+        .listing-img img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
         .listing-info { padding:1rem; }
         .listing-title { font-weight:bold; color:#2c3e50; margin-bottom:0.5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .listing-price { color:#2ecc71; font-size:1.2rem; font-weight:bold; }
@@ -607,9 +607,9 @@
      listings.forEach(item => {
          let imgHtml = `<i class="fas fa-image"></i>`;
          if (item.imgUrl) {
-             imgHtml = `<img src="${escapeHtml(item.imgUrl)}" alt="${escapeHtml(item.title)}">`;
+             imgHtml = `<img src="${escapeHtml(item.imgUrl)}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async" onerror="listingImageFailed(this)">`;
          } else if (item.img && typeof item.img === 'string' && item.img.length > 0) {
-             imgHtml = `<img src="data:${item.imgtype||'image/jpeg'};base64,${item.img}" alt="${escapeHtml(item.title)}">`;
+             imgHtml = `<img src="data:${item.imgtype||'image/jpeg'};base64,${item.img}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async" onerror="listingImageFailed(this)">`;
          }
          const card = document.createElement('div');
          card.className = 'listing-card';
@@ -626,6 +626,14 @@
  }
 
  function viewListingDetails(id) { window.location.href = `/listing/${id}`; }
+
+ /** A missing or unreadable image must not leave a broken-icon box in the grid. */
+ function listingImageFailed(img) {
+     img.onerror = null;
+     if (img.parentNode) {
+         img.parentNode.innerHTML = '<i class="fas fa-image"></i>';
+     }
+ }
 
  function updatePaginationUI(pageData) {
      if (pageData.totalPages <= 1) { els.controlsEl.style.display = 'none'; return; }

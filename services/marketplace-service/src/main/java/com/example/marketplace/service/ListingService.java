@@ -399,8 +399,10 @@ public class ListingService {
 
         return transactions.execute(status -> {
             Listings listing = requireOwnedListing(id, actor.id());
-            boolean imageChanged = !Objects.equals(listing.getImgUrl(), uploaded.url());
-            listing.setImgUrl(uploaded.url());
+            // Store the relative path, never an absolute URL: the same row must
+            // render on localhost, on the public IP and on the HTTPS domain.
+            boolean imageChanged = !Objects.equals(listing.getImgUrl(), uploaded.path());
+            listing.setImgUrl(uploaded.path());
             listing.setImg(null);
             listing.setImgtype(null);
 

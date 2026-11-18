@@ -18,6 +18,16 @@ public class HomeController {
         return "login"; // Maps to templates/login.html
     }
 
+    /**
+     * The same page hosts the login and register tabs. A dedicated URL keeps
+     * the "Register here" link on the home page working and lets the page open
+     * on the register tab.
+     */
+    @GetMapping("/register")
+    public String registerPage() {
+        return "login";
+    }
+
     @GetMapping("/verify")
     public String verifyPage() {
         return "verify";

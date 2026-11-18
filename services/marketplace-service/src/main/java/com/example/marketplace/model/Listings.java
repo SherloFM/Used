@@ -65,6 +65,29 @@ public class Listings {
     @Column
     private String imgUrl;
 
+    /**
+     * Rows written by an earlier deployment can hold an absolute Media URL such
+     * as {@code http://localhost:8088/api/media/{id}}, which no browser other
+     * than the one on the server can load. Return only the path for those rows
+     * so images that are already stored keep working without a migration.
+     * External image URLs (anything not served by Media) are untouched.
+     */
+    public String getImgUrl() {
+        return relativeMediaPath(imgUrl);
+    }
+
+    /** Shared with {@code UserProfile} semantics: never rewrite a non-Media URL. */
+    public static String relativeMediaPath(String url) {
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+        int marker = url.indexOf("/api/media/");
+        if (marker > 0 && (url.startsWith("http://") || url.startsWith("https://"))) {
+            return url.substring(marker);
+        }
+        return url;
+    }
+
 
     public enum Status{
         ACTIVE,

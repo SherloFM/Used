@@ -69,7 +69,10 @@ public class SecurityConfiguration {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokens)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                        .ignoringRequestMatchers("/api/internal/**"))
+                        // The gateway has no browser session and is authenticated
+                        // by its HMAC signature instead.
+                        .ignoringRequestMatchers("/api/internal/**",
+                                "/api/payments/gateway/callback"))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(cache -> cache.disable())
                 .formLogin(form -> form.disable())
@@ -90,6 +93,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/internal/**").hasRole("INTERNAL")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/gateway/callback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/listings", "/api/listings/search", "/api/listings/*",

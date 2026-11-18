@@ -25,6 +25,7 @@
         .btn-buy { width:100%; padding:14px; border:none; border-radius:12px; background: var(--brand-gradient); color:white; font-weight:700; font-size:1rem; cursor:pointer; }
         .btn-buy:disabled { opacity:0.6; cursor:not-allowed; }
         #statusCard { display:none; text-align:center; padding:2rem; }
+        #summaryImg img { width:100%; height:100%; object-fit: cover; object-position: center; display:block; }
     </style>
     <link rel="stylesheet" href="/css/theme.css">
 </head>
@@ -43,19 +44,25 @@
                 <p style="margin:6px 0 0 0; color:#888;">Secure checkout for your order</p>
             </div>
             <div class="card-body">
+                <div id="resumeBanner" style="display:none; margin-bottom:14px; padding:12px; border-radius:10px; background:#eef6ff; border:1px solid #cfe4fb; color:#1d5c96; font-size:0.9rem;">
+                    <i class="fas fa-clock"></i>
+                    You have an Almotawaj Wallet payment in progress for this item.
+                    <button type="button" onclick="resumeGateway()" style="margin-left:8px; border:none; background:none; color:#1d5c96; font-weight:700; text-decoration:underline; cursor:pointer;">Continue payment</button>
+                </div>
+
                 <div class="method active" data-method="WALLET" onclick="selectMethod(this)">
                     <div class="dot"></div>
                     <div>
-                        <div style="font-weight:600;">Wallet</div>
+                        <div style="font-weight:600;">Wallet balance</div>
                         <div style="color:#888; font-size:0.9rem;">Pay using your account balance</div>
                     </div>
                     <div style="margin-left:auto; color:#27ae60;" id="walletBalance">--</div>
                 </div>
-                <div class="method disabled" data-method="CARD" onclick="selectMethod(this)">
+                <div class="method" data-method="GATEWAY" onclick="selectMethod(this)">
                     <div class="dot"></div>
                     <div>
-                        <div style="font-weight:600;">Credit/Debit Card <span style="background:#eee;padding:2px 8px;border-radius:10px;font-size:0.75rem;">Coming soon</span></div>
-                        <div style="color:#888; font-size:0.9rem;">Visa, Mastercard</div>
+                        <div style="font-weight:600;">Almotawaj Wallet</div>
+                        <div style="color:#888; font-size:0.9rem;">Pay on the secure Almotawaj checkout page, then come back here</div>
                     </div>
                 </div>
                 <div class="method" data-method="COD" onclick="selectMethod(this)">
@@ -67,6 +74,9 @@
                 </div>
                 <button class="btn-buy" id="payBtn" onclick="placeOrder()"><i class="fas fa-lock"></i> Place Order</button>
                 <p id="payMsg" style="text-align:center; color:#888; margin-top:10px;"></p>
+                <p id="payHint" style="text-align:center; color:#aaa; margin-top:6px; font-size:0.85rem;">
+                    Almotawaj Wallet payments are completed on the gateway's own checkout page.
+                </p>
             </div>
         </div>
 
@@ -96,7 +106,10 @@
             <i id="statusIcon" class="fas fa-spinner fa-spin" style="font-size:3rem; color:var(--brand);"></i>
             <h2 id="statusTitle" style="margin:1rem 0 0.5rem 0;">Processing your payment</h2>
             <p id="statusText" style="color:#666;">Please wait...</p>
-            <a href="/" class="btn btn-ghost" style="margin-top:1rem;">Back to Home</a>
+            <div id="statusActions" style="margin-top:1rem; display:none;">
+                <button type="button" id="retryBtn" class="btn btn-primary" onclick="retryGateway()" style="display:none;">Try again</button>
+                <a href="/" class="btn btn-ghost" style="margin-left:0.5rem;">Back to Home</a>
+            </div>
         </div>
     </div>
 </div>
@@ -109,9 +122,34 @@
     let listing = null;
     let paymentId = null;
     let pollTimer = null;
+    let gatewaySessionId = null;
+    let gatewayAttempt = 0;
+
+    // The gateway appends these two to the return URL after the buyer pays.
+    const returnParams = new URLSearchParams(location.search);
+    const returnedSessionId = returnParams.get('sessionId');
+    const returnedReference = returnParams.get('orderReference');
+    const RESUME_KEY = 'used_gateway_checkout';
+
+    /** USED-{paymentId}-{epoch} -> paymentId (null when the reference is foreign). */
+    function paymentIdFromReference(reference) {
+        if (!reference) return null;
+        const match = /^USED-(\d+)-/.exec(reference);
+        return match ? Number(match[1]) : null;
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
         if (!(await getSession())) { window.location.href = '/login'; return; }
+
+        // Returning from the Almotawaj checkout page: confirm, do not offer
+        // the payment methods again.
+        const returnedPaymentId = paymentIdFromReference(returnedReference);
+        if (returnedSessionId && returnedPaymentId) {
+            gatewayAttempt = 0;
+            await confirmGateway(returnedPaymentId, returnedSessionId);
+            return;
+        }
+
         try {
             const lres = await authenticatedFetch(`/api/listings/${listingId}`);
             listing = await lres.json();
@@ -122,9 +160,9 @@
             document.getElementById('summaryTotal').textContent = '$' + price.toFixed(2);
             const imgWrap = document.getElementById('summaryImg');
             if (listing.imgUrl) {
-                imgWrap.innerHTML = '<img src="'+listing.imgUrl+'" style="width:100%;height:100%;object-fit:cover;">';
+                imgWrap.innerHTML = '<img src="'+listing.imgUrl+'" alt="" onerror="checkoutImageFailed(this)">';
             } else if (listing.img && listing.imgtype) {
-                imgWrap.innerHTML = '<img src="data:'+listing.imgtype+';base64,'+listing.img+'" style="width:100%;height:100%;object-fit:cover;">';
+                imgWrap.innerHTML = '<img src="data:'+listing.imgtype+';base64,'+listing.img+'" alt="" onerror="checkoutImageFailed(this)">';
             }
             const wres = await authenticatedFetch('/api/wallet');
             if (wres.ok) {
@@ -132,13 +170,50 @@
                 document.getElementById('walletBalance').textContent = 'Balance: $' + Number(w.balance).toFixed(2);
             }
         } catch(e) { console.error(e); }
+
+        showResumeBanner();
     });
+
+    function checkoutImageFailed(img) {
+        img.onerror = null;
+        if (img.parentNode) img.parentNode.innerHTML = '<i class="fas fa-image" style="color:#ccc;"></i>';
+    }
+
+    /** A stored checkout older than the gateway session window is dead; drop it. */
+    function liveResumeEntry() {
+        try {
+            const stored = JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null');
+            if (!stored || !stored.checkoutUrl) return null;
+            if (Date.now() - Number(stored.startedAt || 0) > 30 * 60 * 1000) {
+                sessionStorage.removeItem(RESUME_KEY);
+                return null;
+            }
+            return String(stored.listingId) === String(listingId) ? stored : null;
+        } catch (e) {
+            sessionStorage.removeItem(RESUME_KEY);
+            return null;
+        }
+    }
+
+    function showResumeBanner() {
+        if (liveResumeEntry()) {
+            document.getElementById('resumeBanner').style.display = 'block';
+        }
+    }
+
+    function resumeGateway() {
+        const stored = liveResumeEntry();
+        if (stored) { window.location.href = stored.checkoutUrl; return; }
+        document.getElementById('resumeBanner').style.display = 'none';
+    }
 
     function selectMethod(el) {
         if (el.classList.contains('disabled')) return;
         document.querySelectorAll('.method').forEach(m => m.classList.remove('active'));
         el.classList.add('active');
         selectedMethod = el.dataset.method;
+        document.getElementById('payHint').style.display =
+            selectedMethod === 'GATEWAY' ? 'block' : 'none';
     }
 
     async function placeOrder() {
@@ -146,20 +221,24 @@
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Placing...';
         try {
+            if (selectedMethod === 'GATEWAY') {
+                await startGateway(btn);
+                return;
+            }
             const res = await authenticatedFetch(`/api/payments/${listingId}?method=${selectedMethod}`, {
                 method: 'POST'
             });
             const body = await res.json().catch(()=>({}));
             if (!res.ok) {
                 document.getElementById('payMsg').textContent = window.AppErrors ? AppErrors.fromResponse(res,body) : (body.message||'Failed');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+                resetPayButton(btn);
                 return;
             }
             paymentId = body.paymentId;
             const qpos = body.queuePosition || 1;
             document.getElementById('checkoutGrid').style.display = 'none';
             document.getElementById('statusCard').style.display = 'block';
+            document.getElementById('statusActions').style.display = 'block';
             if (selectedMethod === 'COD') {
                 document.getElementById('statusIcon').className = 'fas fa-handshake';
                 document.getElementById('statusIcon').style.color = 'var(--brand)';
@@ -169,7 +248,6 @@
                 } else {
                     document.getElementById('statusText').textContent = "We've sent the seller a ping. You'll be notified when they accept or decline. (5 min timeout)";
                 }
-                startCountdown();
                 pollStatus();
             } else {
                 document.getElementById('statusIcon').className = 'fas fa-spinner fa-spin';
@@ -179,8 +257,145 @@
             }
         } catch(e) {
             document.getElementById('payMsg').textContent = 'Could not reach the server.';
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+            resetPayButton(btn);
+        }
+    }
+
+    function resetPayButton(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+    }
+
+    /** Creates the gateway checkout session, then sends the buyer to the gateway. */
+    async function startGateway(btn) {
+        try {
+            const res = await authenticatedFetch(`/api/payments/${listingId}/gateway`, { method: 'POST' });
+            const body = await res.json().catch(()=>({}));
+            if (!res.ok || !body.checkoutUrl) {
+                document.getElementById('payMsg').textContent =
+                    window.AppErrors ? AppErrors.fromResponse(res, body)
+                                     : (body.message || 'Could not start the wallet payment.');
+                resetPayButton(btn);
+                return;
+            }
+            sessionStorage.setItem(RESUME_KEY, JSON.stringify({
+                listingId: listingId,
+                paymentId: body.paymentId,
+                startedAt: Date.now(),
+                checkoutUrl: body.checkoutUrl
+            }));
+            window.location.href = body.checkoutUrl;
+        } catch (e) {
+            document.getElementById('payMsg').textContent = 'Could not reach the server.';
+            resetPayButton(btn);
+        }
+    }
+
+    function showStatus(iconClass, color, title, text) {
+        document.getElementById('checkoutGrid').style.display = 'none';
+        document.getElementById('statusCard').style.display = 'block';
+        const icon = document.getElementById('statusIcon');
+        icon.className = iconClass;
+        icon.style.color = color;
+        document.getElementById('statusTitle').textContent = title;
+        document.getElementById('statusText').textContent = text;
+        document.getElementById('statusActions').style.display = 'block';
+        document.getElementById('retryBtn').style.display = 'none';
+    }
+
+    /** Ask Marketplace to verify the checkout with the gateway. */
+    async function confirmGateway(id, sessionId) {
+        paymentId = id;
+        gatewaySessionId = sessionId;
+        showStatus('fas fa-spinner fa-spin', 'var(--brand)',
+            'Confirming your wallet payment', 'Checking the payment status with Almotawaj Wallet...');
+        try {
+            const res = await authenticatedFetch(
+                `/api/payments/${id}/gateway?sessionId=${encodeURIComponent(sessionId)}`);
+            const body = await res.json().catch(()=>({}));
+            if (!res.ok) {
+                failGateway(body.message || 'We could not confirm this wallet payment.');
+                return;
+            }
+            applyGatewayStatus(body);
+            if (body.status === 'PENDING' || body.status === 'PROCESSING') {
+                scheduleGatewayPoll();
+            }
+        } catch (e) {
+            failGateway('Could not reach the server. Please refresh this page.');
+        }
+    }
+
+    function applyGatewayStatus(status) {
+        if (status.status === 'COMPLETED') {
+            sessionStorage.removeItem(RESUME_KEY);
+            showStatus('fas fa-check-circle', '#27ae60', 'Payment Successful',
+                'Your Almotawaj Wallet payment was confirmed and your order is complete.');
+            return true;
+        }
+        if (status.status === 'FAILED') {
+            sessionStorage.removeItem(RESUME_KEY);
+            showStatus('fas fa-times-circle', '#e74c3c', 'Payment was not completed',
+                status.friendlyMessage || status.failureReason || 'The wallet payment was not completed.');
+            document.getElementById('retryBtn').style.display = 'inline-block';
+            return true;
+        }
+        document.getElementById('statusText').textContent =
+            'Waiting for the wallet confirmation. This page updates automatically.';
+        return false;
+    }
+
+    function scheduleGatewayPoll() {
+        if (pollTimer) clearTimeout(pollTimer);
+        pollTimer = setTimeout(pollGatewayStatus, 2000);
+    }
+
+    async function pollGatewayStatus() {
+        gatewayAttempt++;
+        try {
+            const res = await authenticatedFetch(`/api/payments/${paymentId}`);
+            if (res.ok) {
+                const status = await res.json();
+                if (applyGatewayStatus(status)) return;
+
+                // The callback may not be configured: re-verify with the gateway
+                // every fourth poll, then keep waiting.
+                if (gatewaySessionId && gatewayAttempt % 4 === 0) {
+                    const confirm = await authenticatedFetch(
+                        `/api/payments/${paymentId}/gateway?sessionId=${encodeURIComponent(gatewaySessionId)}`);
+                    if (confirm.ok) {
+                        const confirmed = await confirm.json();
+                        if (applyGatewayStatus(confirmed)) return;
+                    }
+                }
+            }
+            if (gatewayAttempt >= 75) {
+                failGateway('Still waiting for the wallet confirmation. If you were charged, '
+                    + 'contact support with payment #' + paymentId + '.');
+                return;
+            }
+            scheduleGatewayPoll();
+        } catch (e) {
+            if (gatewayAttempt >= 75) {
+                failGateway('Still waiting for the wallet confirmation.');
+                return;
+            }
+            scheduleGatewayPoll();
+        }
+    }
+
+    function failGateway(message) {
+        if (pollTimer) clearTimeout(pollTimer);
+        showStatus('fas fa-exclamation-circle', '#e67e22', 'Payment not confirmed yet', message);
+        document.getElementById('retryBtn').style.display = 'inline-block';
+    }
+
+    function retryGateway() {
+        if (gatewaySessionId) {
+            gatewayAttempt = 0;
+            confirmGateway(paymentId, gatewaySessionId);
+        } else {
+            window.location.reload();
         }
     }
 

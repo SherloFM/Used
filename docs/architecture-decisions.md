@@ -295,14 +295,78 @@ Payment execution, wallet balances, listing sale, and payment/transaction
 records remain atomic inside Marketplace. Kafka distributes work; it does not
 split the transaction.
 
+### Payments — Almotawaj Wallet gateway (2026-11-18)
+
+The buyer can pay for a listing on the external Almotawaj Wallet checkout page
+instead of using the internal balance. The gateway holds the money; Marketplace
+only credits the **seller** after a PAID status is verified. No schema change was
+approved for this, so the integration reuses existing columns:
+
+- `Payment.Method.CARD` (existing enum value) marks a gateway payment. The UI
+  calls it "Almotawaj Wallet"; `WALLET` still means the internal balance.
+- There is no column for the gateway session id, so the payment id is encoded in
+  `orderReference = USED-{paymentId}-{epochMillis}`. The return redirect and the
+  signed callback both carry the reference back and
+  `GatewayOrderReference.paymentId(...)` recovers the row. The epoch suffix
+  satisfies the gateway's "one session per order reference" rule across retries.
+- The buyer's session id is not persisted anywhere. It is returned to the
+  browser and passed back on the confirm request, so a lost browser tab only
+  costs a re-check, not data.
+
+Flow:
+
+1. `POST /api/payments/{listingId}/gateway` creates the `PENDING` payment row and
+   then calls `POST /api/gateway/checkout-sessions` on the gateway. The browser
+   receives only `checkoutUrl`; `X-API-Key` never leaves the server.
+2. The buyer pays on `https://wallet.almotawaj.com`, which redirects back to
+   `{WALLET_GATEWAY_PUBLIC_BASE_URL}/payment/{listingId}?sessionId=...&orderReference=...`.
+3. `GET /api/payments/{id}/gateway?sessionId=...` re-reads the session, checks the
+   order reference and amount, and completes on PAID.
+4. `POST /api/payments/gateway/callback` is the signed server-to-server path.
+   `X-Wallet-Signature` is the hex HMAC-SHA256 of the exact raw body with
+   `WALLET_GATEWAY_SIGNING_SECRET`, compared in constant time. The endpoint is
+   `permitAll` and CSRF-exempt because the gateway has no browser session; the
+   signature is the authentication.
+
+Completion stays one local transaction inside Marketplace:
+`PENDING|FAILED -> PROCESSING` is claimed conditionally, the listing is claimed
+`ACTIVE -> SOLD`, the seller's wallet is credited, the `Transactions` row is
+written, and the payment becomes `COMPLETED`. The buyer is **not** debited
+locally: they already paid the gateway. Repeats are no-ops.
+
+Two recovery rules:
+
+- A local expiry sweep marks stale `CARD` payments `GATEWAY_EXPIRED` every 60 s
+  and before each new attempt. A later signed PAID callback still completes the
+  payment, because the money was taken; only a `PROCESSING` claim can win.
+- If the listing was already sold by another buyer, the payment fails with
+  `ALREADY_SOLD` and the gateway session is refunded automatically. A refund that
+  the gateway rejects is logged as `[WALLET] ... manual refund required`; there is
+  no reconciliation job, so that log line is the operator signal.
+
+Amounts are sent to the gateway exactly as the listing price with two decimals.
+The gateway accepts BHD 0.100–5000.000 while the site displays `$`; the currency
+question is unresolved and the code does not convert. Values outside the gateway
+range are rejected before a session is created.
+
 ### Media
 
 Media owns `media_assets` (bytes, content type, size, SHA-256, uploader id) and
 serves immutable images at `/api/media/{id}`. Accounts and Marketplace authenticate
 the user and check ownership first, then upload with the internal token, then store
-the returned URL in the existing `imgUrl` column and clear inline bytes. The
-external upload is intentionally outside their database transaction so a slow
-Media call does not hold a row lock.
+the returned **relative path** in the existing `imgUrl` column and clear inline
+bytes. The external upload is intentionally outside their database transaction so
+a slow Media call does not hold a row lock.
+
+The stored value is `/api/media/{id}`, never an absolute URL. A relative path is
+the only form that renders on localhost, on the public IP and on the HTTPS domain
+at once, so `MEDIA_PUBLIC_BASE_URL` stays empty in every deployment. Rows written
+before this rule can still hold `http://localhost:8088/api/media/{id}`; the
+`Listings.getImgUrl()` and `UserProfile.getImgUrl()` getters strip any absolute
+Media prefix on read, so no data migration is needed. Non-Media URLs are returned
+unchanged. The frontend renders thumbnails with `object-fit: cover` and the detail
+view with `object-fit: contain`, and every grid swaps a failed image for the
+neutral placeholder instead of a broken-image icon.
 
 There is no distributed transaction: a stored asset can become unreferenced if the
 owner's save fails, and replacement leaves the old asset behind. Both are accepted

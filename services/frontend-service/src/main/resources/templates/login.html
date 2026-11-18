@@ -220,7 +220,7 @@
 
 <script>
     // --- TAB SWITCHING LOGIC ---
-    function switchTab(tabName) {
+    function switchTab(tabName, updateUrl) {
         const loginSec = document.getElementById('loginFormSection');
         const regSec = document.getElementById('registerFormSection');
         const tabs = document.querySelectorAll('.tab-btn');
@@ -238,7 +238,21 @@
             tabs[1].classList.add('active');
             regSec.classList.add('active');
         }
+
+        // Keep the address bar in step so a refresh stays on the same tab.
+        if (updateUrl !== false && window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', tabName === 'register' ? '/register' : '/login');
+        }
     }
+
+    // Open the tab named by the URL (/register or /login?tab=register).
+    document.addEventListener('DOMContentLoaded', () => {
+        const wantsRegister = location.pathname.replace(/\/+$/, '') === '/register'
+            || new URLSearchParams(location.search).get('tab') === 'register';
+        if (wantsRegister) {
+            switchTab('register', false);
+        }
+    });
 
     // --- HELPERS ---
     function showMessage(elementId, text, type) {

@@ -39,8 +39,8 @@
 
         .main-image-container {
             width: 100%;
-            height: 400px;
-            background: #eee;
+            height: clamp(260px, 45vw, 420px);
+            background: #f4f5f7;
             border-radius: 12px;
             overflow: hidden;
             display: flex;
@@ -52,7 +52,9 @@
         .main-image-container img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            /* Show the whole item: cropping the seller's photo hides condition. */
+            object-fit: contain;
+            display: block;
         }
         .image-placeholder-icon { font-size: 4rem; color: #ccc; }
 
@@ -186,6 +188,15 @@
             <div class="main-image-container" id="imageContainer">
                 <!-- Image injected here by JS -->
                 <i class="fas fa-image image-placeholder-icon"></i>
+            </div>
+
+            <!-- Owner only: add or replace the photo without recreating the listing -->
+            <div id="ownerPhotoRow" style="display:none; align-items:center; gap:10px; margin:-1rem 0 1.5rem 0;">
+                <button type="button" class="btn-primary" onclick="document.getElementById('ownerPhotoInput').click()" style="padding:8px 14px;">
+                    <i class="fas fa-camera"></i> <span id="ownerPhotoLabel">Add photo</span>
+                </button>
+                <span id="ownerPhotoMsg" style="font-size:0.9rem; color:#7f8c8d;"></span>
+                <input type="file" id="ownerPhotoInput" accept="image/jpeg,image/png,.jpg,.jpeg,.png" style="display:none;" onchange="uploadListingPhoto(this)">
             </div>
 
             <div class="description-section">
@@ -332,14 +343,21 @@
         // 2. Image Handling (Media URL, with legacy Base64 fallback)
         const imgContainer = document.getElementById('imageContainer');
         if (data.imgUrl) {
-            imgContainer.innerHTML = `<img src="${data.imgUrl}" alt="${data.title}">`;
+            imgContainer.innerHTML = `<img src="${data.imgUrl}" alt="${data.title}" onerror="listingImageFailed(this)">`;
         } else if (data.img && typeof data.img === 'string' && data.img.length > 0) {
             const mimeType = data.imgtype || 'image/jpeg';
-            imgContainer.innerHTML = `<img src="data:${mimeType};base64,${data.img}" alt="${data.title}">`;
+            imgContainer.innerHTML = `<img src="data:${mimeType};base64,${data.img}" alt="${data.title}" onerror="listingImageFailed(this)">`;
         } else {
             // Keep placeholder icon if no image
             imgContainer.innerHTML = '<i class="fas fa-image image-placeholder-icon"></i>';
         }
+
+        // Owner-only photo control: lets a listing published without an image
+        // (or with the wrong one) be fixed without recreating the listing.
+        const isOwner = !!(currentSession && data.seller && data.seller.id === currentSession.id);
+        document.getElementById('ownerPhotoRow').style.display = isOwner ? 'flex' : 'none';
+        document.getElementById('ownerPhotoLabel').textContent =
+            (data.imgUrl || data.img) ? 'Change photo' : 'Add photo';
 
         // 3. Seller Info
         // Backend exposes the seller under "seller" (safe subset; "user" is @JsonIgnore'd).
@@ -359,6 +377,60 @@
 
         // Check favorite status for logged-in users
         checkFavoriteStatus();
+    }
+
+    /** Swap a broken image for the neutral placeholder instead of the browser icon. */
+    function listingImageFailed(img) {
+        img.onerror = null;
+        if (img.parentNode) {
+            img.parentNode.innerHTML = '<i class="fas fa-image image-placeholder-icon"></i>';
+        }
+    }
+
+    async function uploadListingPhoto(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const msg = document.getElementById('ownerPhotoMsg');
+        if (file.size > 5 * 1024 * 1024) {
+            msg.style.color = '#e74c3c';
+            msg.textContent = 'That image is larger than 5 MB.';
+            input.value = '';
+            return;
+        }
+        if (!['image/jpeg', 'image/png'].includes(file.type)) {
+            msg.style.color = '#e74c3c';
+            msg.textContent = 'Only JPEG and PNG images are supported.';
+            input.value = '';
+            return;
+        }
+
+        msg.style.color = '#7f8c8d';
+        msg.textContent = 'Uploading...';
+        const formData = new FormData();
+        formData.append('img', file);
+        try {
+            const res = await authenticatedFetch(`/api/listings/${currentListingId}/image`, {
+                method: 'PUT',
+                body: formData
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.message || 'The photo could not be uploaded.');
+            }
+            const updated = await res.json();
+            const container = document.getElementById('imageContainer');
+            if (updated.imgUrl) {
+                container.innerHTML = `<img src="${updated.imgUrl}" alt="${updated.title || ''}" onerror="listingImageFailed(this)">`;
+            }
+            document.getElementById('ownerPhotoLabel').textContent = 'Change photo';
+            msg.style.color = '#27ae60';
+            msg.textContent = 'Photo updated.';
+        } catch (err) {
+            msg.style.color = '#e74c3c';
+            msg.textContent = err.message || 'The photo could not be uploaded.';
+        } finally {
+            input.value = '';
+        }
     }
 
     async function checkFavoriteStatus() {

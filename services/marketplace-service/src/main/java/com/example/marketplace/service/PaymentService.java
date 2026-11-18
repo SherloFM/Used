@@ -1,7 +1,11 @@
 package com.example.marketplace.service;
 
 import com.example.marketplace.client.AccountsClient;
+import com.example.marketplace.client.CheckoutSession;
+import com.example.marketplace.client.GatewayOrderReference;
 import com.example.marketplace.client.UserSummary;
+import com.example.marketplace.client.WalletGatewayClient;
+import com.example.marketplace.exceptions.GatewaySignatureException;
 import com.example.marketplace.exceptions.InformationExistException;
 import com.example.marketplace.messaging.payment.PaymentRequested;
 import com.example.marketplace.messaging.payment.PaymentRequestPublisher;
@@ -9,6 +13,7 @@ import com.example.marketplace.exceptions.ResourceNotFoundException;
 import com.example.marketplace.model.Listings;
 import com.example.marketplace.model.Payment;
 import com.example.marketplace.model.responses.CodRequestStatus;
+import com.example.marketplace.model.responses.GatewayCheckoutResponse;
 import com.example.marketplace.model.responses.PaymentResult;
 import com.example.marketplace.model.responses.PaymentStatus;
 import com.example.marketplace.repository.ListingRepository;
@@ -17,18 +22,23 @@ import com.example.marketplace.security.CurrentActor;
 import com.example.marketplace.security.CurrentActorProvider;
 import com.example.marketplace.client.EmailClient;
 import com.example.marketplace.client.NotificationClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
 
 @Service
 public class PaymentService {
@@ -37,6 +47,11 @@ public class PaymentService {
 
     private static final List<Payment.Status> ACTIVE =
             List.of(Payment.Status.PENDING, Payment.Status.PROCESSING);
+
+    /** Gateway limits: BHD 0.100 - 5000.000, at most three decimals. */
+    private static final BigDecimal GATEWAY_MIN = new BigDecimal("0.100");
+    private static final BigDecimal GATEWAY_MAX = new BigDecimal("5000.000");
+    private static final int GATEWAY_SESSION_MINUTES = 30;
 
     private final PaymentRepository paymentRepository;
     private final ListingRepository listingRepository;
@@ -47,6 +62,9 @@ public class PaymentService {
     private final PaymentWorker paymentWorker;
     private final EmailClient emailClient;
     private final NotificationClient notificationClient;
+    private final WalletGatewayClient walletGateway;
+    private final ObjectMapper objectMapper;
+    private final String gatewayPublicBaseUrl;
 
     public PaymentService(PaymentRepository paymentRepository,
                           ListingRepository listingRepository,
@@ -56,7 +74,11 @@ public class PaymentService {
                           PaymentRequestPublisher paymentRequestPublisher,
                           PaymentWorker paymentWorker,
                           EmailClient emailClient,
-                          NotificationClient notificationClient) {
+                          NotificationClient notificationClient,
+                          WalletGatewayClient walletGateway,
+                          ObjectMapper objectMapper,
+                          @Value("${wallet.gateway.public-base-url:http://localhost:8080}")
+                          String gatewayPublicBaseUrl) {
         this.paymentRepository = paymentRepository;
         this.listingRepository = listingRepository;
         this.walletService = walletService;
@@ -66,7 +88,11 @@ public class PaymentService {
         this.paymentWorker = paymentWorker;
         this.emailClient = emailClient;
         this.notificationClient = notificationClient;
+        this.walletGateway = walletGateway;
+        this.objectMapper = objectMapper;
+        this.gatewayPublicBaseUrl = gatewayPublicBaseUrl == null ? "" : gatewayPublicBaseUrl.replaceAll("/+$", "");
     }
+
 
     public PaymentResult submitPayment(Long listingId, Payment.Method method) {
         Payment.Method chosen = (method == null) ? Payment.Method.WALLET : method;
@@ -78,7 +104,7 @@ public class PaymentService {
         }
         if (chosen == Payment.Method.CARD) {
             throw new InformationExistException(
-                    "Card payments are coming soon. Please use your wallet or cash on delivery.");
+                    "Card details are not collected here. Please pay through the Almotawaj Wallet checkout.");
         }
 
         Listings listing = listingRepository.findById(listingId)
@@ -160,6 +186,270 @@ public class PaymentService {
         if (p.getMethod() != Payment.Method.COD) return 1;
         return (int) paymentRepository.countByListingIdAndMethodAndStatusAndIdLessThanEqual(
                 p.getListing().getId(), Payment.Method.COD, Payment.Status.PENDING, p.getId());
+    }
+
+    // ==========================================================
+    // ALMOTAWAI WALLET GATEWAY
+    // The buyer pays on the gateway's checkout page. The gateway holds the
+    // money; Marketplace only credits the seller once a PAID status is
+    // verified, either from the signed callback or from a status lookup.
+    // No schema change: Payment.Method.CARD (the existing enum value) and
+    // the payment id inside the order reference are enough.
+    // ==========================================================
+
+    /** Creates the payment row and the gateway checkout session. */
+    public GatewayCheckoutResponse startGatewayPayment(Long listingId) {
+        CurrentActor buyer = currentActorProvider.get();
+
+        if (buyer.isAdmin()) {
+            throw new InformationExistException("Admins cannot buy listings");
+        }
+        if (!walletGateway.isConfigured()) {
+            throw new InformationExistException(
+                    "Almotawaj Wallet payments are not available yet. "
+                            + "Please use your wallet balance or cash on delivery.");
+        }
+
+        Listings listing = listingRepository.findById(listingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Listing not found"));
+
+        if (listing.getUserId().equals(buyer.id())) {
+            throw new InformationExistException("You cannot buy your own listing");
+        }
+        if (listing.getStatus() != Listings.Status.ACTIVE) {
+            throw new InformationExistException("Listing is no longer available for purchase");
+        }
+
+        BigDecimal amount = BigDecimal.valueOf(listing.getPrice()).setScale(2, RoundingMode.HALF_UP);
+        if (amount.compareTo(GATEWAY_MIN) < 0 || amount.compareTo(GATEWAY_MAX) > 0) {
+            throw new InformationExistException(
+                    "Almotawaj Wallet accepts orders from 0.100 to 5000.000. This item is outside that range.");
+        }
+
+        // Abandoned sessions must not block the item for the buyer or anyone else.
+        expireStaleGatewayPayments();
+
+        // A new attempt supersedes this buyer's own unfinished gateway payment.
+        paymentRepository.findFirstByBuyerIdAndListingIdAndStatusInOrderByIdDesc(
+                        buyer.id(), listingId, ACTIVE)
+                .filter(existing -> existing.getMethod() == Payment.Method.CARD)
+                .ifPresent(existing -> paymentWorker.markFailed(existing.getId(), "GATEWAY_SUPERSEDED"));
+
+        Optional<Payment> anyActive =
+                paymentRepository.findFirstByListingIdAndStatusInOrderByIdDesc(listingId, ACTIVE);
+        if (anyActive.isPresent()) {
+            Payment existing = anyActive.get();
+            if (!existing.getBuyerId().equals(buyer.id())
+                    && existing.getMethod() != Payment.Method.COD) {
+                throw new InformationExistException(
+                        "This item is already being purchased by another buyer");
+            }
+        }
+
+        walletService.ensureWallet(listing.getUserId());
+
+        Payment payment = new Payment();
+        payment.setListing(listing);
+        payment.setBuyerId(buyer.id());
+        payment.setSellerId(listing.getUserId());
+        // Existing enum value: the column stores CARD, the buyer sees "Almotawaj Wallet".
+        payment.setMethod(Payment.Method.CARD);
+        payment.setAmount(amount);
+        payment.setStatus(Payment.Status.PENDING);
+        payment.setExpiresAt(LocalDateTime.now().plusMinutes(GATEWAY_SESSION_MINUTES));
+        Payment saved = paymentRepository.save(payment);
+
+        String returnUrl = gatewayPublicBaseUrl + "/payment/" + listingId;
+        try {
+            CheckoutSession session = walletGateway.create(
+                    GatewayOrderReference.create(saved.getId()),
+                    amount,
+                    gatewayDescription(listing),
+                    returnUrl,
+                    GATEWAY_SESSION_MINUTES);
+            log.info("[WALLET] #{} checkout session {} created (listing={}, buyer={})",
+                    saved.getId(), session.id(), listingId, buyer.id());
+            return GatewayCheckoutResponse.from(saved.getId(), session);
+        } catch (WalletGatewayClient.GatewayException failure) {
+            paymentWorker.markFailed(saved.getId(), "GATEWAY_" + failure.getCode());
+            log.warn("[WALLET] checkout session failed for payment #{}: {}",
+                    saved.getId(), failure.getCode());
+            throw new InformationExistException(gatewayErrorMessage(failure.getCode()));
+        }
+    }
+
+    /** Confirms a returned checkout and completes the sale when the gateway says PAID. */
+    public PaymentStatus confirmGatewayPayment(Long paymentId, String sessionId) {
+        CurrentActor buyer = currentActorProvider.get();
+        Payment payment = getPayment(paymentId);
+
+        if (!payment.getBuyerId().equals(buyer.id())) {
+            throw new ResourceNotFoundException("Payment not found");
+        }
+        if (payment.getMethod() != Payment.Method.CARD) {
+            throw new InformationExistException("This is not an Almotawaj Wallet payment");
+        }
+        if (payment.getStatus() == Payment.Status.COMPLETED) {
+            return getPaymentStatus(paymentId);
+        }
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new InformationExistException("The wallet checkout reference is missing.");
+        }
+
+        CheckoutSession session = fetchSession(sessionId);
+        Long referencedPayment = GatewayOrderReference.paymentId(session.orderReference());
+        if (!paymentId.equals(referencedPayment)) {
+            throw new InformationExistException(
+                    "That wallet checkout does not belong to this order.");
+        }
+        if (session.amount() == null || session.amount().compareTo(payment.getAmount()) != 0) {
+            throw new InformationExistException(
+                    "The wallet checkout amount does not match this order.");
+        }
+
+        switch (session.status()) {
+            case CheckoutSession.PAID -> completeGatewayPayment(paymentId, sessionId);
+            case CheckoutSession.CANCELLED -> paymentWorker.markFailed(paymentId, "GATEWAY_CANCELLED");
+            case CheckoutSession.EXPIRED -> paymentWorker.markFailed(paymentId, "GATEWAY_EXPIRED");
+            case CheckoutSession.REFUNDED -> paymentWorker.markFailed(paymentId, "GATEWAY_REFUNDED");
+            default -> { /* still PENDING: the page keeps polling */ }
+        }
+        return getPaymentStatus(paymentId);
+    }
+
+    /**
+     * Signed gateway callback. Safe to repeat: completion is idempotent, and a
+     * payment that arrives after the local expiry is still honoured because the
+     * presentation of a paid session means the money was taken.
+     */
+    public void handleGatewayCallback(String rawBody, String signature) {
+        if (!walletGateway.canVerifyCallbacks()) {
+            log.error("[WALLET] Callback rejected: WALLET_GATEWAY_SIGNING_SECRET is not configured");
+            throw new GatewaySignatureException();
+        }
+        if (!walletGateway.validSignature(rawBody, signature)) {
+            throw new GatewaySignatureException();
+        }
+
+        JsonNode event;
+        try {
+            event = objectMapper.readTree(rawBody);
+        } catch (Exception failure) {
+            throw new InformationExistException("Malformed wallet callback.");
+        }
+
+        if (!"checkout.paid".equals(event.path("event").asText())
+                || !CheckoutSession.PAID.equals(event.path("status").asText())) {
+            return; // cancelled / expired / refunded events need no fulfilment
+        }
+
+        Long paymentId = GatewayOrderReference.paymentId(event.path("orderReference").asText(null));
+        if (paymentId == null) {
+            log.warn("[WALLET] Callback ignored: unknown order reference");
+            return;
+        }
+
+        Payment payment = paymentRepository.findById(paymentId).orElse(null);
+        if (payment == null) {
+            log.warn("[WALLET] Callback ignored: payment #{} not found", paymentId);
+            return;
+        }
+
+        String sessionId = event.path("sessionId").asText(null);
+        JsonNode amountNode = event.path("amount");
+        BigDecimal amount = amountNode.isNumber() ? amountNode.decimalValue() : null;
+        if (amount == null || amount.compareTo(payment.getAmount()) != 0) {
+            log.error("[WALLET] Callback amount mismatch for payment #{}, refunding session {}",
+                    paymentId, sessionId);
+            refundQuietly(sessionId);
+            return;
+        }
+
+        completeGatewayPayment(paymentId, sessionId);
+    }
+
+    private void completeGatewayPayment(Long paymentId, String sessionId) {
+        try {
+            paymentWorker.completeGatewayPayment(paymentId);
+            paymentWorker.onPaymentCompleted(paymentId);
+            log.info("[WALLET] payment #{} completed", paymentId);
+        } catch (PaymentWorker.PaymentFailedException failure) {
+            String reason = failure.getReason();
+            if ("ALREADY_HANDLED".equals(reason)) {
+                return; // a concurrent callback/redirect completed it first
+            }
+            log.warn("[WALLET] payment #{} could not be completed: {}", paymentId, reason);
+            if ("ALREADY_SOLD".equals(reason)) {
+                paymentWorker.markFailed(paymentId, "ALREADY_SOLD");
+                refundQuietly(sessionId);
+            } else {
+                paymentWorker.markFailed(paymentId, reason);
+            }
+        }
+    }
+
+    private CheckoutSession fetchSession(String sessionId) {
+        try {
+            return walletGateway.get(sessionId);
+        } catch (WalletGatewayClient.GatewayException failure) {
+            if ("CHECKOUT_NOT_FOUND".equals(failure.getCode())) {
+                throw new InformationExistException(
+                        "That wallet checkout could not be found. Please start the payment again.");
+            }
+            throw new InformationExistException(
+                    "The wallet service is unavailable right now. Please try again shortly.");
+        }
+    }
+
+    private void refundQuietly(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            log.error("[WALLET] No session id available for a refund; manual refund required");
+            return;
+        }
+        try {
+            walletGateway.refund(sessionId);
+            log.info("[WALLET] Refunded session {} (item was already sold)", sessionId);
+        } catch (WalletGatewayClient.GatewayException failure) {
+            log.error("[WALLET] Refund failed for session {} ({}); manual refund required",
+                    sessionId, failure.getCode());
+        }
+    }
+
+    private String gatewayDescription(Listings listing) {
+        String description = "Used Marketplace: " + listing.getTitle();
+        return description.length() <= 140 ? description : description.substring(0, 140);
+    }
+
+    private String gatewayErrorMessage(String code) {
+        return switch (code) {
+            case "UNAUTHORIZED" -> "Wallet payments are not configured correctly. Please contact support.";
+            case "VALIDATION_FAILED" -> "The wallet gateway rejected this order. Please try again.";
+            case "ORDER_ALREADY_EXISTS" -> "A wallet payment already exists for this order. "
+                    + "Refresh the page and try again.";
+            case "TOO_MANY_REQUESTS" -> "Too many payment attempts. Please wait a moment and try again.";
+            case "GATEWAY_UNAVAILABLE", "GATEWAY_INVALID_RESPONSE" ->
+                    "The wallet service is unavailable right now. Please try again shortly.";
+            default -> "The wallet payment could not be started. Please try again.";
+        };
+    }
+
+    /** Local expiry of gateway sessions that were never paid (or never returned). */
+    @Scheduled(fixedDelay = 60000)
+    public void expireGatewayPayments() {
+        expireStaleGatewayPayments();
+    }
+
+    private void expireStaleGatewayPayments() {
+        List<Payment> stale = paymentRepository.findByMethodAndStatusAndExpiresAtBefore(
+                Payment.Method.CARD, Payment.Status.PENDING, LocalDateTime.now());
+        for (Payment payment : stale) {
+            try {
+                paymentWorker.markFailed(payment.getId(), "GATEWAY_EXPIRED");
+                log.info("[WALLET] payment #{} marked expired", payment.getId());
+            } catch (Exception failure) {
+                log.error("[WALLET] could not expire payment #{}", payment.getId(), failure);
+            }
+        }
     }
 
     public Payment getPayment(Long id) {

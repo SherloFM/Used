@@ -48,7 +48,7 @@ class UserProfileServiceTest {
 
         service.uploadProfileImage(image());
 
-        assertEquals("http://localhost:8088/api/media/x", profile.getImgUrl());
+        assertEquals("/api/media/x", profile.getImgUrl());
         assertNull(profile.getImg());
         assertNull(profile.getImgtype());
         verify(profiles).save(profile);

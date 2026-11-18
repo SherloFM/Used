@@ -41,16 +41,23 @@ public class PaymentStatus {
 
     private static String friendly(Payment p) {
         if (p.getStatus() == Payment.Status.FAILED) {
-            return switch (p.getFailureReason()) {
+            return switch (p.getFailureReason() == null ? "" : p.getFailureReason()) {
                 case "COD_EXPIRED" -> "Your cash-on-delivery request expired because the seller didn't respond in time.";
                 case "COD_DECLINED" -> "The seller declined your cash-on-delivery request.";
                 case "ALREADY_SOLD" -> "This item was sold to another buyer.";
                 case "INSUFFICIENT_FUNDS" -> "Insufficient wallet balance.";
+                case "GATEWAY_EXPIRED" -> "The wallet checkout expired before it was paid. Please start it again.";
+                case "GATEWAY_CANCELLED" -> "The wallet checkout was cancelled. Please start it again.";
+                case "GATEWAY_REFUNDED" -> "The wallet payment was refunded.";
                 default -> "Something went wrong. Please try again.";
             };
         }
         if (p.getStatus() == Payment.Status.COMPLETED) return "Payment completed.";
-        if (p.getStatus() == Payment.Status.PENDING) return "Waiting for seller approval.";
+        if (p.getStatus() == Payment.Status.PENDING) {
+            return p.getMethod() == Payment.Method.CARD
+                    ? "Waiting for the Almotawaj Wallet payment to be confirmed."
+                    : "Waiting for seller approval.";
+        }
         return "Processing...";
     }
 }
